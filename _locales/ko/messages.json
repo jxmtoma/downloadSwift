@@ -1,0 +1,109 @@
+{
+  "extension_name": { "message": "DownloadSwift" },
+  "extension_description": { "message": "직접 동영상 파일과 암호화되지 않은 HLS 스트림을 진행률, MP4 출력, 추적 없이 로컬에 저장합니다." },
+  "brand_subtitle": { "message": "비공개 동영상 저장 도구" },
+  "state_off": { "message": "꺼짐" },
+  "state_active": { "message": "활성" },
+  "state_downloading": { "message": "다운로드 중" },
+  "state_downloaded": { "message": "다운로드됨" },
+  "permission_title": { "message": "이 페이지에서 미디어 찾기" },
+  "permission_description": { "message": "재생 중인 직접 동영상과 스트림 재생목록을 감지하도록 접근을 허용합니다." },
+  "enable_detection": { "message": "미디어 감지 사용" },
+  "disable_detection": { "message": "감지 끄기" },
+  "privacy_disclosure": { "message": "기기 내에서만 처리: DownloadSwift는 미디어 URL, 페이지 제목, 다운로드 상태 및 제한된 요청 헤더를 로컬에서 처리합니다. 다운로드할 때 해당 헤더와 기존 쿠키가 원래 HTTPS 미디어 호스트로 다시 전송될 수 있습니다. 개발자에게는 아무 정보도 전송되지 않습니다." },
+  "media_views": { "message": "미디어 보기" },
+  "tab_detected": { "message": "감지됨" },
+  "tab_downloading": { "message": "다운로드 중" },
+  "tab_downloaded": { "message": "다운로드됨" },
+  "current_tab": { "message": "현재 탭" },
+  "browser_session": { "message": "현재 브라우저 세션" },
+  "detected_media": { "message": "감지된 미디어" },
+  "active_downloads": { "message": "진행 중인 다운로드" },
+  "downloaded_files": { "message": "다운로드한 파일" },
+  "clear_all": { "message": "모두 지우기" },
+  "clear_history": { "message": "기록 지우기" },
+  "empty_detected_title": { "message": "감지된 미디어가 없습니다" },
+  "empty_detected_message": { "message": "이 탭에서 동영상을 재생하세요. 결과가 여기에 자동으로 표시됩니다." },
+  "empty_downloading_title": { "message": "다운로드 중인 항목이 없습니다" },
+  "empty_downloading_message": { "message": "모든 탭에서 진행 중인 다운로드가 여기에 표시됩니다." },
+  "empty_downloaded_title": { "message": "아직 다운로드가 없습니다" },
+  "empty_downloaded_message": { "message": "완료된 파일이 여기에 표시됩니다." },
+  "rights_note": { "message": "저장 권한이 있는 미디어만 다운로드하세요. YouTube, DRM 및 접근 제어 우회는 지원되지 않습니다." },
+  "on_device_only": { "message": "기기 내에서만 처리" },
+  "copied": { "message": "복사됨" },
+  "video_file": { "message": "동영상 파일" },
+  "stream_playlist": { "message": "스트림 재생목록" },
+  "background": { "message": "백그라운드" },
+  "retry": { "message": "다시 시도" },
+  "again": { "message": "다시 다운로드" },
+  "download": { "message": "다운로드" },
+  "cancel": { "message": "취소" },
+  "copy_link": { "message": "링크 복사" },
+  "copy_url": { "message": "URL 복사" },
+  "download_progress": { "message": "다운로드 진행률" },
+  "status_starting": { "message": "다운로드를 시작하는 중…" },
+  "status_preparing_direct": { "message": "직접 다운로드를 준비하는 중…" },
+  "status_reading_hls": { "message": "HLS 재생목록을 읽는 중…" },
+  "status_connecting": { "message": "동영상 서버에 연결하는 중…" },
+  "status_saving": { "message": "다운로드 폴더에 저장하는 중…" },
+  "status_downloading_to_folder": { "message": "다운로드 폴더로 다운로드하는 중…" },
+  "status_download_failed": { "message": "다운로드에 실패했습니다." },
+  "status_canceled": { "message": "다운로드가 취소되었습니다." },
+  "status_saved": { "message": "다운로드 폴더에 저장되었습니다." },
+  "status_downloading_bytes": {
+    "message": "$total$ 중 $received$ 다운로드 중…",
+    "placeholders": {
+      "received": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_segment": {
+    "message": "$total$개 중 $current$번째 세그먼트 다운로드 중…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_converting_segment": {
+    "message": "$total$개 중 $current$번째 세그먼트를 MP4로 변환하는 중…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_percent": {
+    "message": "$percent$% 다운로드 중…",
+    "placeholders": { "percent": { "content": "$1" } }
+  },
+  "status_downloading_mb": {
+    "message": "$megabytes$MB 다운로드 중…",
+    "placeholders": { "megabytes": { "content": "$1" } }
+  },
+  "status_download_failed_reason": {
+    "message": "다운로드 실패($reason$).",
+    "placeholders": { "reason": { "content": "$1" } }
+  },
+  "error_start_download": { "message": "다운로드를 시작할 수 없습니다." },
+  "error_cancel_download": { "message": "다운로드를 취소할 수 없습니다." },
+  "error_detection_not_enabled": { "message": "미디어 감지가 활성화되지 않았습니다." },
+  "error_no_active_tab": { "message": "활성 탭을 찾을 수 없습니다." },
+  "error_start_hls": { "message": "HLS 다운로드를 시작할 수 없습니다." },
+  "error_chrome_interrupted": { "message": "Chrome에서 다운로드를 중단했습니다." },
+  "error_chrome_save": { "message": "Chrome에서 다운로드를 저장할 수 없습니다." },
+  "error_https_only": { "message": "HTTPS 미디어만 지원됩니다." },
+  "error_http_status": {
+    "message": "서버에서 HTTP $status$ 응답을 반환했습니다.",
+    "placeholders": { "status": { "content": "$1" } }
+  },
+  "error_not_hls": { "message": "이 URL은 HLS 재생목록이 아닙니다." },
+  "error_separate_audio": { "message": "이 스트림은 오디오와 동영상이 분리되어 있어 아직 지원되지 않습니다." },
+  "error_live_hls": { "message": "라이브 HLS 스트림은 아직 지원되지 않습니다." },
+  "error_byte_range_hls": { "message": "바이트 범위 HLS 스트림은 아직 지원되지 않습니다." },
+  "error_encrypted_hls": { "message": "암호화되었거나 DRM으로 보호된 HLS 스트림은 지원되지 않습니다." },
+  "error_no_segments": { "message": "HLS 재생목록에 동영상 세그먼트가 없습니다." },
+  "error_unsupported_ts": { "message": "이 TS 스트림에는 지원되는 H.264/AAC 미디어가 없습니다." },
+  "unknown_error": { "message": "알 수 없는 오류" },
+  "notification_ready": { "message": "동영상이 준비되었습니다." },
+  "notification_complete": { "message": "다운로드 완료" },
+  "offscreen_justification": { "message": "탭을 열지 않고 동영상을 다운로드하고 준비합니다." }
+}

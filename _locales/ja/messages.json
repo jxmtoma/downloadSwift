@@ -1,0 +1,109 @@
+{
+  "extension_name": { "message": "DownloadSwift" },
+  "extension_description": { "message": "直接動画ファイルと暗号化されていない HLS ストリームを、進行状況表示、MP4 出力、トラッキングなしでローカルに保存します。" },
+  "brand_subtitle": { "message": "プライベート動画保存" },
+  "state_off": { "message": "オフ" },
+  "state_active": { "message": "有効" },
+  "state_downloading": { "message": "ダウンロード中" },
+  "state_downloaded": { "message": "ダウンロード済み" },
+  "permission_title": { "message": "このページのメディアを検索" },
+  "permission_description": { "message": "再生中の直接動画やストリームプレイリストを検出するためのアクセスを許可します。" },
+  "enable_detection": { "message": "メディア検出を有効にする" },
+  "disable_detection": { "message": "検出を無効にする" },
+  "privacy_disclosure": { "message": "端末内のみ：DownloadSwift はメディア URL、ページタイトル、ダウンロード状況、限定されたリクエストヘッダーをローカルで処理します。ダウンロード時には、それらのヘッダーと既存の Cookie が元の HTTPS メディアホストに送り返される場合があります。開発者には何も送信されません。" },
+  "media_views": { "message": "メディア表示" },
+  "tab_detected": { "message": "検出済み" },
+  "tab_downloading": { "message": "ダウンロード中" },
+  "tab_downloaded": { "message": "完了済み" },
+  "current_tab": { "message": "現在のタブ" },
+  "browser_session": { "message": "このブラウザセッション" },
+  "detected_media": { "message": "検出されたメディア" },
+  "active_downloads": { "message": "進行中のダウンロード" },
+  "downloaded_files": { "message": "ダウンロード済みファイル" },
+  "clear_all": { "message": "すべて消去" },
+  "clear_history": { "message": "履歴を消去" },
+  "empty_detected_title": { "message": "メディアはまだ検出されていません" },
+  "empty_detected_message": { "message": "このタブで動画を再生してください。結果が自動的にここに表示されます。" },
+  "empty_downloading_title": { "message": "ダウンロード中の項目はありません" },
+  "empty_downloading_message": { "message": "すべてのタブで進行中のダウンロードがここに表示されます。" },
+  "empty_downloaded_title": { "message": "ダウンロード履歴はありません" },
+  "empty_downloaded_message": { "message": "完了したファイルがここに表示されます。" },
+  "rights_note": { "message": "保存する権利のあるメディアのみをダウンロードしてください。YouTube、DRM、アクセス制御の回避には対応していません。" },
+  "on_device_only": { "message": "端末内のみ" },
+  "copied": { "message": "コピーしました" },
+  "video_file": { "message": "動画ファイル" },
+  "stream_playlist": { "message": "ストリームプレイリスト" },
+  "background": { "message": "バックグラウンド" },
+  "retry": { "message": "再試行" },
+  "again": { "message": "もう一度" },
+  "download": { "message": "ダウンロード" },
+  "cancel": { "message": "キャンセル" },
+  "copy_link": { "message": "リンクをコピー" },
+  "copy_url": { "message": "URL をコピー" },
+  "download_progress": { "message": "ダウンロードの進行状況" },
+  "status_starting": { "message": "ダウンロードを開始しています…" },
+  "status_preparing_direct": { "message": "直接ダウンロードを準備しています…" },
+  "status_reading_hls": { "message": "HLS プレイリストを読み込んでいます…" },
+  "status_connecting": { "message": "動画サーバーに接続しています…" },
+  "status_saving": { "message": "ダウンロードフォルダに保存しています…" },
+  "status_downloading_to_folder": { "message": "ダウンロードフォルダにダウンロードしています…" },
+  "status_download_failed": { "message": "ダウンロードに失敗しました。" },
+  "status_canceled": { "message": "ダウンロードをキャンセルしました。" },
+  "status_saved": { "message": "ダウンロードフォルダに保存しました。" },
+  "status_downloading_bytes": {
+    "message": "$total$ 中 $received$ をダウンロードしています…",
+    "placeholders": {
+      "received": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_segment": {
+    "message": "$total$ 個中 $current$ 個目のセグメントをダウンロードしています…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_converting_segment": {
+    "message": "$total$ 個中 $current$ 個目のセグメントを MP4 に変換しています…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_percent": {
+    "message": "$percent$% ダウンロード済み…",
+    "placeholders": { "percent": { "content": "$1" } }
+  },
+  "status_downloading_mb": {
+    "message": "$megabytes$ MB ダウンロード済み…",
+    "placeholders": { "megabytes": { "content": "$1" } }
+  },
+  "status_download_failed_reason": {
+    "message": "ダウンロードに失敗しました（$reason$）。",
+    "placeholders": { "reason": { "content": "$1" } }
+  },
+  "error_start_download": { "message": "ダウンロードを開始できませんでした。" },
+  "error_cancel_download": { "message": "ダウンロードをキャンセルできませんでした。" },
+  "error_detection_not_enabled": { "message": "メディア検出が有効になりませんでした。" },
+  "error_no_active_tab": { "message": "アクティブなタブが見つかりません。" },
+  "error_start_hls": { "message": "HLS ダウンロードを開始できませんでした。" },
+  "error_chrome_interrupted": { "message": "Chrome がダウンロードを中断しました。" },
+  "error_chrome_save": { "message": "Chrome がダウンロードを保存できませんでした。" },
+  "error_https_only": { "message": "HTTPS メディアのみ対応しています。" },
+  "error_http_status": {
+    "message": "サーバーから HTTP $status$ が返されました。",
+    "placeholders": { "status": { "content": "$1" } }
+  },
+  "error_not_hls": { "message": "この URL は HLS プレイリストではありません。" },
+  "error_separate_audio": { "message": "このストリームは音声と映像が分離されているため、まだ対応していません。" },
+  "error_live_hls": { "message": "ライブ HLS ストリームにはまだ対応していません。" },
+  "error_byte_range_hls": { "message": "バイト範囲 HLS ストリームにはまだ対応していません。" },
+  "error_encrypted_hls": { "message": "暗号化または DRM 保護された HLS ストリームには対応していません。" },
+  "error_no_segments": { "message": "HLS プレイリストに動画セグメントがありません。" },
+  "error_unsupported_ts": { "message": "この TS ストリームには対応する H.264/AAC メディアが含まれていません。" },
+  "unknown_error": { "message": "不明なエラー" },
+  "notification_ready": { "message": "動画の準備ができました。" },
+  "notification_complete": { "message": "ダウンロード完了" },
+  "offscreen_justification": { "message": "タブを開かずに動画をダウンロードして準備します。" }
+}

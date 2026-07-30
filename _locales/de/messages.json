@@ -1,0 +1,109 @@
+{
+  "extension_name": { "message": "DownloadSwift" },
+  "extension_description": { "message": "Direkte Videodateien und unverschlüsselte HLS-Streams lokal speichern – mit Fortschritt, MP4-Ausgabe und ohne Tracking." },
+  "brand_subtitle": { "message": "Privater Video-Downloader" },
+  "state_off": { "message": "Aus" },
+  "state_active": { "message": "Aktiv" },
+  "state_downloading": { "message": "Wird heruntergeladen" },
+  "state_downloaded": { "message": "Heruntergeladen" },
+  "permission_title": { "message": "Medien auf dieser Seite finden" },
+  "permission_description": { "message": "Zugriff erlauben, um direkte Videos und Stream-Playlists während der Wiedergabe zu erkennen." },
+  "enable_detection": { "message": "Medienerkennung aktivieren" },
+  "disable_detection": { "message": "Erkennung deaktivieren" },
+  "privacy_disclosure": { "message": "Nur auf diesem Gerät: DownloadSwift verarbeitet Medien-URLs, Seitentitel, Downloadstatus und begrenzte Anfrage-Header lokal. Beim Herunterladen können diese Header und vorhandene Cookies an den ursprünglichen HTTPS-Medienhost zurückgesendet werden. Nichts wird an den Entwickler gesendet." },
+  "media_views": { "message": "Medienansichten" },
+  "tab_detected": { "message": "Erkannt" },
+  "tab_downloading": { "message": "Downloads" },
+  "tab_downloaded": { "message": "Heruntergeladen" },
+  "current_tab": { "message": "Aktueller Tab" },
+  "browser_session": { "message": "Diese Browsersitzung" },
+  "detected_media": { "message": "Erkannte Medien" },
+  "active_downloads": { "message": "Aktive Downloads" },
+  "downloaded_files": { "message": "Heruntergeladene Dateien" },
+  "clear_all": { "message": "Alle löschen" },
+  "clear_history": { "message": "Verlauf löschen" },
+  "empty_detected_title": { "message": "Noch keine Medien erkannt" },
+  "empty_detected_message": { "message": "Starte ein Video in diesem Tab. Ergebnisse erscheinen automatisch hier." },
+  "empty_downloading_title": { "message": "Keine aktiven Downloads" },
+  "empty_downloading_message": { "message": "Laufende Downloads aus allen Tabs erscheinen hier." },
+  "empty_downloaded_title": { "message": "Noch keine Downloads" },
+  "empty_downloaded_message": { "message": "Abgeschlossene Dateien erscheinen hier." },
+  "rights_note": { "message": "Lade nur Medien herunter, die du speichern darfst. YouTube, DRM und das Umgehen von Zugriffskontrollen werden nicht unterstützt." },
+  "on_device_only": { "message": "Nur auf diesem Gerät" },
+  "copied": { "message": "Kopiert" },
+  "video_file": { "message": "Videodatei" },
+  "stream_playlist": { "message": "Stream-Playlist" },
+  "background": { "message": "Hintergrund" },
+  "retry": { "message": "Wiederholen" },
+  "again": { "message": "Erneut" },
+  "download": { "message": "Herunterladen" },
+  "cancel": { "message": "Abbrechen" },
+  "copy_link": { "message": "Link kopieren" },
+  "copy_url": { "message": "URL kopieren" },
+  "download_progress": { "message": "Downloadfortschritt" },
+  "status_starting": { "message": "Download wird gestartet…" },
+  "status_preparing_direct": { "message": "Direkter Download wird vorbereitet…" },
+  "status_reading_hls": { "message": "HLS-Playlist wird gelesen…" },
+  "status_connecting": { "message": "Verbindung zum Videoserver wird hergestellt…" },
+  "status_saving": { "message": "Wird in Downloads gespeichert…" },
+  "status_downloading_to_folder": { "message": "Download in deinen Downloads-Ordner…" },
+  "status_download_failed": { "message": "Download fehlgeschlagen." },
+  "status_canceled": { "message": "Download abgebrochen." },
+  "status_saved": { "message": "In Downloads gespeichert." },
+  "status_downloading_bytes": {
+    "message": "$received$ von $total$ werden heruntergeladen…",
+    "placeholders": {
+      "received": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_segment": {
+    "message": "Segment $current$ von $total$ wird heruntergeladen…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_converting_segment": {
+    "message": "Segment $current$ von $total$ wird in MP4 konvertiert…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_percent": {
+    "message": "Download bei $percent$ %…",
+    "placeholders": { "percent": { "content": "$1" } }
+  },
+  "status_downloading_mb": {
+    "message": "$megabytes$ MB werden heruntergeladen…",
+    "placeholders": { "megabytes": { "content": "$1" } }
+  },
+  "status_download_failed_reason": {
+    "message": "Download fehlgeschlagen ($reason$).",
+    "placeholders": { "reason": { "content": "$1" } }
+  },
+  "error_start_download": { "message": "Der Download konnte nicht gestartet werden." },
+  "error_cancel_download": { "message": "Der Download konnte nicht abgebrochen werden." },
+  "error_detection_not_enabled": { "message": "Die Medienerkennung wurde nicht aktiviert." },
+  "error_no_active_tab": { "message": "Kein aktiver Tab gefunden." },
+  "error_start_hls": { "message": "Der HLS-Download konnte nicht gestartet werden." },
+  "error_chrome_interrupted": { "message": "Chrome hat den Download unterbrochen." },
+  "error_chrome_save": { "message": "Chrome konnte den Download nicht speichern." },
+  "error_https_only": { "message": "Es werden nur HTTPS-Medien unterstützt." },
+  "error_http_status": {
+    "message": "Der Server hat HTTP $status$ zurückgegeben.",
+    "placeholders": { "status": { "content": "$1" } }
+  },
+  "error_not_hls": { "message": "Diese URL ist keine HLS-Playlist." },
+  "error_separate_audio": { "message": "Dieser Stream trennt Audio und Video, was noch nicht unterstützt wird." },
+  "error_live_hls": { "message": "Live-HLS-Streams werden noch nicht unterstützt." },
+  "error_byte_range_hls": { "message": "HLS-Streams mit Byte-Bereichen werden noch nicht unterstützt." },
+  "error_encrypted_hls": { "message": "Verschlüsselte oder DRM-geschützte HLS-Streams werden nicht unterstützt." },
+  "error_no_segments": { "message": "Die HLS-Playlist enthält keine Videosegmente." },
+  "error_unsupported_ts": { "message": "Dieser TS-Stream enthält keine unterstützten H.264/AAC-Medien." },
+  "unknown_error": { "message": "unbekannter Fehler" },
+  "notification_ready": { "message": "Dein Video ist bereit." },
+  "notification_complete": { "message": "Download abgeschlossen" },
+  "offscreen_justification": { "message": "Video herunterladen und vorbereiten, ohne einen Tab zu öffnen." }
+}

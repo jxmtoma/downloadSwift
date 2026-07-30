@@ -1,0 +1,109 @@
+{
+  "extension_name": { "message": "DownloadSwift" },
+  "extension_description": { "message": "Enregistrez localement des vidéos directes et des flux HLS non chiffrés, avec progression, sortie MP4 et sans suivi." },
+  "brand_subtitle": { "message": "Enregistreur vidéo privé" },
+  "state_off": { "message": "Désactivé" },
+  "state_active": { "message": "Actif" },
+  "state_downloading": { "message": "Téléchargement" },
+  "state_downloaded": { "message": "Téléchargé" },
+  "permission_title": { "message": "Rechercher des médias sur cette page" },
+  "permission_description": { "message": "Autorisez l'accès pour détecter les vidéos directes et les listes de lecture pendant leur lecture." },
+  "enable_detection": { "message": "Activer la détection des médias" },
+  "disable_detection": { "message": "Désactiver la détection" },
+  "privacy_disclosure": { "message": "Uniquement sur l'appareil : DownloadSwift traite localement les URL des médias, les titres de pages, l'état des téléchargements et certains en-têtes de requête. Lors d'un téléchargement, ces en-têtes et les cookies existants peuvent être renvoyés à l'hôte HTTPS d'origine du média. Rien n'est envoyé au développeur." },
+  "media_views": { "message": "Vues des médias" },
+  "tab_detected": { "message": "Détectés" },
+  "tab_downloading": { "message": "En cours" },
+  "tab_downloaded": { "message": "Téléchargés" },
+  "current_tab": { "message": "Onglet actuel" },
+  "browser_session": { "message": "Cette session du navigateur" },
+  "detected_media": { "message": "Médias détectés" },
+  "active_downloads": { "message": "Téléchargements actifs" },
+  "downloaded_files": { "message": "Fichiers téléchargés" },
+  "clear_all": { "message": "Tout effacer" },
+  "clear_history": { "message": "Effacer l'historique" },
+  "empty_detected_title": { "message": "Aucun média détecté" },
+  "empty_detected_message": { "message": "Lancez une vidéo dans cet onglet. Les résultats apparaîtront automatiquement ici." },
+  "empty_downloading_title": { "message": "Aucun téléchargement en cours" },
+  "empty_downloading_message": { "message": "Les téléchargements en cours de tous les onglets apparaîtront ici." },
+  "empty_downloaded_title": { "message": "Aucun téléchargement" },
+  "empty_downloaded_message": { "message": "Les fichiers terminés apparaîtront ici." },
+  "rights_note": { "message": "Téléchargez uniquement les médias que vous êtes autorisé à enregistrer. YouTube, les DRM et le contournement des contrôles d'accès ne sont pas pris en charge." },
+  "on_device_only": { "message": "Uniquement sur l'appareil" },
+  "copied": { "message": "Copié" },
+  "video_file": { "message": "Fichier vidéo" },
+  "stream_playlist": { "message": "Liste de lecture" },
+  "background": { "message": "Arrière-plan" },
+  "retry": { "message": "Réessayer" },
+  "again": { "message": "À nouveau" },
+  "download": { "message": "Télécharger" },
+  "cancel": { "message": "Annuler" },
+  "copy_link": { "message": "Copier le lien" },
+  "copy_url": { "message": "Copier l'URL" },
+  "download_progress": { "message": "Progression du téléchargement" },
+  "status_starting": { "message": "Démarrage du téléchargement…" },
+  "status_preparing_direct": { "message": "Préparation du téléchargement direct…" },
+  "status_reading_hls": { "message": "Lecture de la liste HLS…" },
+  "status_connecting": { "message": "Connexion au serveur vidéo…" },
+  "status_saving": { "message": "Enregistrement dans Téléchargements…" },
+  "status_downloading_to_folder": { "message": "Téléchargement dans votre dossier Téléchargements…" },
+  "status_download_failed": { "message": "Échec du téléchargement." },
+  "status_canceled": { "message": "Téléchargement annulé." },
+  "status_saved": { "message": "Enregistré dans Téléchargements." },
+  "status_downloading_bytes": {
+    "message": "Téléchargement de $received$ sur $total$…",
+    "placeholders": {
+      "received": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_segment": {
+    "message": "Téléchargement du segment $current$ sur $total$…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_converting_segment": {
+    "message": "Conversion du segment $current$ sur $total$ en MP4…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_percent": {
+    "message": "Téléchargement à $percent$ %…",
+    "placeholders": { "percent": { "content": "$1" } }
+  },
+  "status_downloading_mb": {
+    "message": "Téléchargement de $megabytes$ Mo…",
+    "placeholders": { "megabytes": { "content": "$1" } }
+  },
+  "status_download_failed_reason": {
+    "message": "Échec du téléchargement ($reason$).",
+    "placeholders": { "reason": { "content": "$1" } }
+  },
+  "error_start_download": { "message": "Impossible de démarrer le téléchargement." },
+  "error_cancel_download": { "message": "Impossible d'annuler le téléchargement." },
+  "error_detection_not_enabled": { "message": "La détection des médias n'a pas été activée." },
+  "error_no_active_tab": { "message": "Aucun onglet actif trouvé." },
+  "error_start_hls": { "message": "Impossible de démarrer le téléchargement HLS." },
+  "error_chrome_interrupted": { "message": "Chrome a interrompu le téléchargement." },
+  "error_chrome_save": { "message": "Chrome n'a pas pu enregistrer le téléchargement." },
+  "error_https_only": { "message": "Seuls les médias HTTPS sont pris en charge." },
+  "error_http_status": {
+    "message": "Le serveur a renvoyé HTTP $status$.",
+    "placeholders": { "status": { "content": "$1" } }
+  },
+  "error_not_hls": { "message": "Cette URL n'est pas une liste de lecture HLS." },
+  "error_separate_audio": { "message": "Ce flux sépare l'audio et la vidéo, ce qui n'est pas encore pris en charge." },
+  "error_live_hls": { "message": "Les flux HLS en direct ne sont pas encore pris en charge." },
+  "error_byte_range_hls": { "message": "Les flux HLS par plages d'octets ne sont pas encore pris en charge." },
+  "error_encrypted_hls": { "message": "Les flux HLS chiffrés ou protégés par DRM ne sont pas pris en charge." },
+  "error_no_segments": { "message": "La liste HLS ne contient aucun segment vidéo." },
+  "error_unsupported_ts": { "message": "Ce flux TS ne contient aucun média H.264/AAC pris en charge." },
+  "unknown_error": { "message": "erreur inconnue" },
+  "notification_ready": { "message": "Votre vidéo est prête." },
+  "notification_complete": { "message": "Téléchargement terminé" },
+  "offscreen_justification": { "message": "Télécharger et préparer la vidéo sans ouvrir d'onglet." }
+}

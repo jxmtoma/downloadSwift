@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="extension_name">DownloadSwift</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <img src="icon.svg" alt="">
+          </span>
+          <span>
+            <h1>DownloadSwift</h1>
+            <span class="brand-subtitle" data-i18n="brand_subtitle">Private video saver</span>
+          </span>
+        </div>
+
+        <span id="detection-badge" class="detection-badge" data-active="false">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="detection-label" data-i18n="state_off">Off</span>
+        </span>
+      </header>
+
+      <p id="status" class="notice" aria-live="polite" hidden></p>
+
+      <section id="permission-controls" class="permission-card">
+        <span class="permission-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 3 5 6v5c0 4.6 2.8 8.1 7 10 4.2-1.9 7-5.4 7-10V6l-7-3Z"/>
+            <path d="m9.5 12 1.7 1.7 3.7-4"/>
+          </svg>
+        </span>
+        <div>
+          <h2 data-i18n="permission_title">Find media on this page</h2>
+          <p data-i18n="permission_description">Enable access to detect direct videos and stream playlists while they play.</p>
+        </div>
+        <button id="enable" class="primary wide" type="button" data-i18n="enable_detection">Enable media detection</button>
+        <p class="privacy-note">
+          <span aria-hidden="true">●</span>
+          <span data-i18n="privacy_disclosure">On-device only: DownloadSwift locally processes media URLs, page titles, download status, and limited request headers. When you download, those limited headers and existing cookies may be sent back to the original HTTPS media host. Nothing is sent to the developer.</span>
+        </p>
+      </section>
+
+      <section id="media-controls" hidden>
+        <div class="view-tabs" role="tablist" aria-label="Media views" data-i18n-aria-label="media_views">
+          <button id="detected-tab" role="tab" type="button" aria-selected="true" data-i18n="tab_detected">Detected</button>
+          <button id="downloading-tab" role="tab" type="button" aria-selected="false" data-i18n="tab_downloading">Downloading</button>
+          <button id="downloaded-tab" role="tab" type="button" aria-selected="false" data-i18n="tab_downloaded">Downloaded</button>
+        </div>
+
+        <div class="results-toolbar">
+          <div>
+            <span id="view-eyebrow" class="eyebrow" data-i18n="current_tab">Current tab</span>
+            <div class="results-title">
+              <h2 id="view-title" data-i18n="detected_media">Detected media</h2>
+              <span id="count" class="count-pill" aria-live="polite">0</span>
+            </div>
+          </div>
+          <button id="clear" class="text-button" type="button" data-i18n="clear_all">Clear all</button>
+        </div>
+
+        <div id="empty" class="empty-state" hidden>
+          <span class="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m10 8 6 4-6 4V8Z"/>
+              <circle cx="12" cy="12" r="9"/>
+            </svg>
+          </span>
+          <h3 id="empty-title" data-i18n="empty_detected_title">No media detected yet</h3>
+          <p id="empty-message" data-i18n="empty_detected_message">Start playing a video on this tab. Results will appear here automatically.</p>
+        </div>
+
+        <ul id="media-list" aria-label="Detected media" data-i18n-aria-label="detected_media"></ul>
+
+        <p class="rights-note" data-i18n="rights_note">Download only media you have permission to save. YouTube, DRM, and access-control bypassing are not supported.</p>
+
+        <footer class="popup-footer">
+          <span class="local-label"><span aria-hidden="true">●</span> <span data-i18n="on_device_only">On-device only</span></span>
+          <button id="disable" class="text-button danger" type="button" data-i18n="disable_detection">Turn off detection</button>
+        </footer>
+      </section>
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

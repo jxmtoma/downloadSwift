@@ -1,0 +1,109 @@
+{
+  "extension_name": { "message": "DownloadSwift" },
+  "extension_description": { "message": "在本地保存直接视频文件和未加密的 HLS 流，显示进度并输出 MP4，全程无跟踪。" },
+  "brand_subtitle": { "message": "私密视频保存工具" },
+  "state_off": { "message": "已关闭" },
+  "state_active": { "message": "已启用" },
+  "state_downloading": { "message": "正在下载" },
+  "state_downloaded": { "message": "已下载" },
+  "permission_title": { "message": "查找此页面上的媒体" },
+  "permission_description": { "message": "允许访问，以便在播放时检测直接视频和流媒体播放列表。" },
+  "enable_detection": { "message": "启用媒体检测" },
+  "disable_detection": { "message": "关闭检测" },
+  "privacy_disclosure": { "message": "仅在设备上处理：DownloadSwift 会在本地处理媒体网址、页面标题、下载状态和有限的请求标头。下载时，这些标头和现有 Cookie 可能会发回原始 HTTPS 媒体主机。不会向开发者发送任何信息。" },
+  "media_views": { "message": "媒体视图" },
+  "tab_detected": { "message": "已检测" },
+  "tab_downloading": { "message": "下载中" },
+  "tab_downloaded": { "message": "已下载" },
+  "current_tab": { "message": "当前标签页" },
+  "browser_session": { "message": "本次浏览器会话" },
+  "detected_media": { "message": "检测到的媒体" },
+  "active_downloads": { "message": "进行中的下载" },
+  "downloaded_files": { "message": "已下载的文件" },
+  "clear_all": { "message": "全部清除" },
+  "clear_history": { "message": "清除历史记录" },
+  "empty_detected_title": { "message": "尚未检测到媒体" },
+  "empty_detected_message": { "message": "请在此标签页中播放视频，结果会自动显示在这里。" },
+  "empty_downloading_title": { "message": "没有正在下载的项目" },
+  "empty_downloading_message": { "message": "所有标签页中进行中的下载都会显示在这里。" },
+  "empty_downloaded_title": { "message": "尚无下载记录" },
+  "empty_downloaded_message": { "message": "已完成的文件会显示在这里。" },
+  "rights_note": { "message": "请仅下载您有权保存的媒体。不支持 YouTube、DRM 或绕过访问控制。" },
+  "on_device_only": { "message": "仅在设备上处理" },
+  "copied": { "message": "已复制" },
+  "video_file": { "message": "视频文件" },
+  "stream_playlist": { "message": "流媒体播放列表" },
+  "background": { "message": "后台" },
+  "retry": { "message": "重试" },
+  "again": { "message": "再次下载" },
+  "download": { "message": "下载" },
+  "cancel": { "message": "取消" },
+  "copy_link": { "message": "复制链接" },
+  "copy_url": { "message": "复制网址" },
+  "download_progress": { "message": "下载进度" },
+  "status_starting": { "message": "正在开始下载…" },
+  "status_preparing_direct": { "message": "正在准备直接下载…" },
+  "status_reading_hls": { "message": "正在读取 HLS 播放列表…" },
+  "status_connecting": { "message": "正在连接视频服务器…" },
+  "status_saving": { "message": "正在保存到“下载”文件夹…" },
+  "status_downloading_to_folder": { "message": "正在下载到您的“下载”文件夹…" },
+  "status_download_failed": { "message": "下载失败。" },
+  "status_canceled": { "message": "下载已取消。" },
+  "status_saved": { "message": "已保存到“下载”文件夹。" },
+  "status_downloading_bytes": {
+    "message": "正在下载 $received$，共 $total$…",
+    "placeholders": {
+      "received": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_segment": {
+    "message": "正在下载第 $current$ 个片段，共 $total$ 个…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_converting_segment": {
+    "message": "正在将第 $current$ 个片段（共 $total$ 个）转换为 MP4…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_percent": {
+    "message": "已下载 $percent$%…",
+    "placeholders": { "percent": { "content": "$1" } }
+  },
+  "status_downloading_mb": {
+    "message": "已下载 $megabytes$ MB…",
+    "placeholders": { "megabytes": { "content": "$1" } }
+  },
+  "status_download_failed_reason": {
+    "message": "下载失败（$reason$）。",
+    "placeholders": { "reason": { "content": "$1" } }
+  },
+  "error_start_download": { "message": "无法开始下载。" },
+  "error_cancel_download": { "message": "无法取消下载。" },
+  "error_detection_not_enabled": { "message": "媒体检测未启用。" },
+  "error_no_active_tab": { "message": "未找到活动标签页。" },
+  "error_start_hls": { "message": "无法开始 HLS 下载。" },
+  "error_chrome_interrupted": { "message": "Chrome 中断了下载。" },
+  "error_chrome_save": { "message": "Chrome 无法保存下载内容。" },
+  "error_https_only": { "message": "仅支持 HTTPS 媒体。" },
+  "error_http_status": {
+    "message": "服务器返回了 HTTP $status$。",
+    "placeholders": { "status": { "content": "$1" } }
+  },
+  "error_not_hls": { "message": "此网址不是 HLS 播放列表。" },
+  "error_separate_audio": { "message": "此流将音频和视频分开提供，暂不支持。" },
+  "error_live_hls": { "message": "暂不支持 HLS 直播流。" },
+  "error_byte_range_hls": { "message": "暂不支持字节范围 HLS 流。" },
+  "error_encrypted_hls": { "message": "不支持加密或受 DRM 保护的 HLS 流。" },
+  "error_no_segments": { "message": "HLS 播放列表中没有视频片段。" },
+  "error_unsupported_ts": { "message": "此 TS 流不包含受支持的 H.264/AAC 媒体。" },
+  "unknown_error": { "message": "未知错误" },
+  "notification_ready": { "message": "您的视频已准备就绪。" },
+  "notification_complete": { "message": "下载完成" },
+  "offscreen_justification": { "message": "无需打开标签页即可下载并准备视频。" }
+}

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DownloadSwift store screenshot</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        align-items: center;
+        background:
+          radial-gradient(circle at 82% 18%, rgb(34 211 238 / 22%), transparent 26%),
+          radial-gradient(circle at 12% 82%, rgb(79 70 229 / 30%), transparent 32%),
+          #0b1020;
+        color: white;
+        display: grid;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        grid-template-columns: 1fr 500px;
+        min-height: 720px;
+        overflow: hidden;
+        padding: 44px 76px;
+        width: 1280px;
+      }
+      .copy { max-width: 570px; }
+      .brand {
+        align-items: center;
+        display: flex;
+        font-size: 20px;
+        font-weight: 800;
+        gap: 12px;
+        margin-bottom: 42px;
+      }
+      .brand img { height: 48px; width: 48px; }
+      .eyebrow {
+        color: #67e8f9;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      h1 {
+        font-size: 50px;
+        letter-spacing: -.045em;
+        line-height: 1.04;
+        margin: 16px 0 22px;
+      }
+      .lead {
+        color: #cbd5e1;
+        font-size: 20px;
+        line-height: 1.55;
+        margin: 0 0 34px;
+        max-width: 520px;
+      }
+      .features {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .feature {
+        background: rgb(255 255 255 / 8%);
+        border: 1px solid rgb(255 255 255 / 12%);
+        border-radius: 999px;
+        color: #e2e8f0;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 10px 15px;
+      }
+      .window {
+        background: #e2e8f0;
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 22px;
+        box-shadow: 0 30px 80px rgb(0 0 0 / 42%);
+        overflow: hidden;
+        transform: rotate(1deg);
+        width: 452px;
+      }
+      .window-bar {
+        align-items: center;
+        background: #f8fafc;
+        display: flex;
+        gap: 7px;
+        height: 38px;
+        padding: 0 14px;
+      }
+      .window-bar span {
+        background: #cbd5e1;
+        border-radius: 50%;
+        height: 9px;
+        width: 9px;
+      }
+      iframe {
+        border: 0;
+        display: block;
+        height: 560px;
+        width: 420px;
+      }
+      .popup-wrap { background: #f8fafc; padding-right: 32px; }
+    </style>
+  </head>
+  <body>
+    <section class="copy">
+      <div class="brand">
+        <img src="../icon.svg" alt="">
+        <span>DownloadSwift</span>
+      </div>
+      <div class="eyebrow">Private video saver</div>
+      <h1 id="headline">Detect. Download. Done.</h1>
+      <p id="lead" class="lead">
+        Save supported direct videos and HLS streams through a private, on-device workflow.
+      </p>
+      <div class="features">
+        <span class="feature">Direct video + HLS</span>
+        <span class="feature">Seekable MP4 output</span>
+        <span class="feature">Background progress</span>
+      </div>
+    </section>
+    <section class="window" aria-label="DownloadSwift popup">
+      <div class="window-bar"><span></span><span></span><span></span></div>
+      <div class="popup-wrap">
+        <iframe id="popup" title="DownloadSwift popup preview"></iframe>
+      </div>
+    </section>
+    <script>
+      const view = new URLSearchParams(location.search).get("view") || "detected";
+      document.querySelector("#popup").src = `popup-preview.html?view=${view}`;
+      if (view === "downloading") {
+        document.querySelector("#headline").textContent = "Follow every download.";
+        document.querySelector("#lead").textContent =
+          "Progress stays visible across tabs, and downloads continue after the source tab closes.";
+      }
+    </script>
+  </body>
+</html>

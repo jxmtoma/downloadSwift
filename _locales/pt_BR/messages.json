@@ -1,0 +1,109 @@
+{
+  "extension_name": { "message": "DownloadSwift" },
+  "extension_description": { "message": "Salve localmente arquivos de vídeo diretos e streams HLS não criptografados, com progresso, saída MP4 e sem rastreamento." },
+  "brand_subtitle": { "message": "Salvador de vídeos privado" },
+  "state_off": { "message": "Desativado" },
+  "state_active": { "message": "Ativo" },
+  "state_downloading": { "message": "Baixando" },
+  "state_downloaded": { "message": "Baixado" },
+  "permission_title": { "message": "Encontrar mídia nesta página" },
+  "permission_description": { "message": "Permita o acesso para detectar vídeos diretos e playlists de streaming durante a reprodução." },
+  "enable_detection": { "message": "Ativar detecção de mídia" },
+  "disable_detection": { "message": "Desativar detecção" },
+  "privacy_disclosure": { "message": "Somente no dispositivo: o DownloadSwift processa localmente URLs de mídia, títulos de páginas, status de downloads e cabeçalhos de solicitação limitados. Ao baixar, esses cabeçalhos e os cookies existentes podem ser reenviados ao host HTTPS original da mídia. Nada é enviado ao desenvolvedor." },
+  "media_views": { "message": "Visualizações de mídia" },
+  "tab_detected": { "message": "Detectada" },
+  "tab_downloading": { "message": "Baixando" },
+  "tab_downloaded": { "message": "Baixada" },
+  "current_tab": { "message": "Guia atual" },
+  "browser_session": { "message": "Esta sessão do navegador" },
+  "detected_media": { "message": "Mídia detectada" },
+  "active_downloads": { "message": "Downloads ativos" },
+  "downloaded_files": { "message": "Arquivos baixados" },
+  "clear_all": { "message": "Limpar tudo" },
+  "clear_history": { "message": "Limpar histórico" },
+  "empty_detected_title": { "message": "Nenhuma mídia detectada" },
+  "empty_detected_message": { "message": "Reproduza um vídeo nesta guia. Os resultados aparecerão aqui automaticamente." },
+  "empty_downloading_title": { "message": "Nenhum download ativo" },
+  "empty_downloading_message": { "message": "Os downloads em andamento de todas as guias aparecerão aqui." },
+  "empty_downloaded_title": { "message": "Nenhum download ainda" },
+  "empty_downloaded_message": { "message": "Os arquivos concluídos aparecerão aqui." },
+  "rights_note": { "message": "Baixe apenas mídias que você tem permissão para salvar. YouTube, DRM e contorno de controles de acesso não são compatíveis." },
+  "on_device_only": { "message": "Somente no dispositivo" },
+  "copied": { "message": "Copiado" },
+  "video_file": { "message": "Arquivo de vídeo" },
+  "stream_playlist": { "message": "Playlist de streaming" },
+  "background": { "message": "Segundo plano" },
+  "retry": { "message": "Tentar novamente" },
+  "again": { "message": "Baixar novamente" },
+  "download": { "message": "Baixar" },
+  "cancel": { "message": "Cancelar" },
+  "copy_link": { "message": "Copiar link" },
+  "copy_url": { "message": "Copiar URL" },
+  "download_progress": { "message": "Progresso do download" },
+  "status_starting": { "message": "Iniciando download…" },
+  "status_preparing_direct": { "message": "Preparando download direto…" },
+  "status_reading_hls": { "message": "Lendo a playlist HLS…" },
+  "status_connecting": { "message": "Conectando ao servidor de vídeo…" },
+  "status_saving": { "message": "Salvando em Downloads…" },
+  "status_downloading_to_folder": { "message": "Baixando para sua pasta Downloads…" },
+  "status_download_failed": { "message": "Falha no download." },
+  "status_canceled": { "message": "Download cancelado." },
+  "status_saved": { "message": "Salvo em Downloads." },
+  "status_downloading_bytes": {
+    "message": "Baixando $received$ de $total$…",
+    "placeholders": {
+      "received": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_segment": {
+    "message": "Baixando segmento $current$ de $total$…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_converting_segment": {
+    "message": "Convertendo segmento $current$ de $total$ para MP4…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_percent": {
+    "message": "Baixando $percent$%…",
+    "placeholders": { "percent": { "content": "$1" } }
+  },
+  "status_downloading_mb": {
+    "message": "Baixando $megabytes$ MB…",
+    "placeholders": { "megabytes": { "content": "$1" } }
+  },
+  "status_download_failed_reason": {
+    "message": "Falha no download ($reason$).",
+    "placeholders": { "reason": { "content": "$1" } }
+  },
+  "error_start_download": { "message": "Não foi possível iniciar o download." },
+  "error_cancel_download": { "message": "Não foi possível cancelar o download." },
+  "error_detection_not_enabled": { "message": "A detecção de mídia não foi ativada." },
+  "error_no_active_tab": { "message": "Nenhuma guia ativa foi encontrada." },
+  "error_start_hls": { "message": "Não foi possível iniciar o download HLS." },
+  "error_chrome_interrupted": { "message": "O Chrome interrompeu o download." },
+  "error_chrome_save": { "message": "O Chrome não conseguiu salvar o download." },
+  "error_https_only": { "message": "Somente mídias HTTPS são compatíveis." },
+  "error_http_status": {
+    "message": "O servidor retornou HTTP $status$.",
+    "placeholders": { "status": { "content": "$1" } }
+  },
+  "error_not_hls": { "message": "Esta URL não é uma playlist HLS." },
+  "error_separate_audio": { "message": "Este stream mantém áudio e vídeo separados, o que ainda não é compatível." },
+  "error_live_hls": { "message": "Streams HLS ao vivo ainda não são compatíveis." },
+  "error_byte_range_hls": { "message": "Streams HLS com intervalo de bytes ainda não são compatíveis." },
+  "error_encrypted_hls": { "message": "Streams HLS criptografados ou protegidos por DRM não são compatíveis." },
+  "error_no_segments": { "message": "A playlist HLS não contém segmentos de vídeo." },
+  "error_unsupported_ts": { "message": "Este stream TS não contém mídia H.264/AAC compatível." },
+  "unknown_error": { "message": "erro desconhecido" },
+  "notification_ready": { "message": "Seu vídeo está pronto." },
+  "notification_complete": { "message": "Download concluído" },
+  "offscreen_justification": { "message": "Baixar e preparar o vídeo sem abrir uma guia." }
+}

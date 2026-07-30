@@ -1,0 +1,109 @@
+{
+  "extension_name": { "message": "DownloadSwift" },
+  "extension_description": { "message": "在本機儲存直接影片檔案和未加密的 HLS 串流，顯示進度並輸出 MP4，全程不追蹤。" },
+  "brand_subtitle": { "message": "私密影片儲存工具" },
+  "state_off": { "message": "已關閉" },
+  "state_active": { "message": "已啟用" },
+  "state_downloading": { "message": "下載中" },
+  "state_downloaded": { "message": "已下載" },
+  "permission_title": { "message": "尋找此頁面上的媒體" },
+  "permission_description": { "message": "允許存取，以便在播放時偵測直接影片和串流播放清單。" },
+  "enable_detection": { "message": "啟用媒體偵測" },
+  "disable_detection": { "message": "關閉偵測" },
+  "privacy_disclosure": { "message": "僅在裝置上處理：DownloadSwift 會在本機處理媒體網址、頁面標題、下載狀態和有限的要求標頭。下載時，這些標頭和現有 Cookie 可能會傳回原始 HTTPS 媒體主機。不會向開發者傳送任何資訊。" },
+  "media_views": { "message": "媒體檢視" },
+  "tab_detected": { "message": "已偵測" },
+  "tab_downloading": { "message": "下載中" },
+  "tab_downloaded": { "message": "已下載" },
+  "current_tab": { "message": "目前分頁" },
+  "browser_session": { "message": "本次瀏覽器工作階段" },
+  "detected_media": { "message": "偵測到的媒體" },
+  "active_downloads": { "message": "進行中的下載" },
+  "downloaded_files": { "message": "已下載的檔案" },
+  "clear_all": { "message": "全部清除" },
+  "clear_history": { "message": "清除記錄" },
+  "empty_detected_title": { "message": "尚未偵測到媒體" },
+  "empty_detected_message": { "message": "請在此分頁中播放影片，結果會自動顯示在這裡。" },
+  "empty_downloading_title": { "message": "沒有正在下載的項目" },
+  "empty_downloading_message": { "message": "所有分頁中進行中的下載都會顯示在這裡。" },
+  "empty_downloaded_title": { "message": "尚無下載記錄" },
+  "empty_downloaded_message": { "message": "已完成的檔案會顯示在這裡。" },
+  "rights_note": { "message": "請僅下載您有權儲存的媒體。不支援 YouTube、DRM 或繞過存取控制。" },
+  "on_device_only": { "message": "僅在裝置上處理" },
+  "copied": { "message": "已複製" },
+  "video_file": { "message": "影片檔案" },
+  "stream_playlist": { "message": "串流播放清單" },
+  "background": { "message": "背景" },
+  "retry": { "message": "重試" },
+  "again": { "message": "再次下載" },
+  "download": { "message": "下載" },
+  "cancel": { "message": "取消" },
+  "copy_link": { "message": "複製連結" },
+  "copy_url": { "message": "複製網址" },
+  "download_progress": { "message": "下載進度" },
+  "status_starting": { "message": "正在開始下載…" },
+  "status_preparing_direct": { "message": "正在準備直接下載…" },
+  "status_reading_hls": { "message": "正在讀取 HLS 播放清單…" },
+  "status_connecting": { "message": "正在連線至影片伺服器…" },
+  "status_saving": { "message": "正在儲存至「下載」資料夾…" },
+  "status_downloading_to_folder": { "message": "正在下載至您的「下載」資料夾…" },
+  "status_download_failed": { "message": "下載失敗。" },
+  "status_canceled": { "message": "下載已取消。" },
+  "status_saved": { "message": "已儲存至「下載」資料夾。" },
+  "status_downloading_bytes": {
+    "message": "正在下載 $received$，共 $total$…",
+    "placeholders": {
+      "received": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_segment": {
+    "message": "正在下載第 $current$ 個片段，共 $total$ 個…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_converting_segment": {
+    "message": "正在將第 $current$ 個片段（共 $total$ 個）轉換為 MP4…",
+    "placeholders": {
+      "current": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "status_downloading_percent": {
+    "message": "已下載 $percent$%…",
+    "placeholders": { "percent": { "content": "$1" } }
+  },
+  "status_downloading_mb": {
+    "message": "已下載 $megabytes$ MB…",
+    "placeholders": { "megabytes": { "content": "$1" } }
+  },
+  "status_download_failed_reason": {
+    "message": "下載失敗（$reason$）。",
+    "placeholders": { "reason": { "content": "$1" } }
+  },
+  "error_start_download": { "message": "無法開始下載。" },
+  "error_cancel_download": { "message": "無法取消下載。" },
+  "error_detection_not_enabled": { "message": "媒體偵測未啟用。" },
+  "error_no_active_tab": { "message": "找不到使用中的分頁。" },
+  "error_start_hls": { "message": "無法開始 HLS 下載。" },
+  "error_chrome_interrupted": { "message": "Chrome 中斷了下載。" },
+  "error_chrome_save": { "message": "Chrome 無法儲存下載內容。" },
+  "error_https_only": { "message": "僅支援 HTTPS 媒體。" },
+  "error_http_status": {
+    "message": "伺服器傳回 HTTP $status$。",
+    "placeholders": { "status": { "content": "$1" } }
+  },
+  "error_not_hls": { "message": "此網址不是 HLS 播放清單。" },
+  "error_separate_audio": { "message": "此串流將音訊和影片分開提供，目前尚不支援。" },
+  "error_live_hls": { "message": "目前尚不支援 HLS 直播串流。" },
+  "error_byte_range_hls": { "message": "目前尚不支援位元組範圍 HLS 串流。" },
+  "error_encrypted_hls": { "message": "不支援加密或受 DRM 保護的 HLS 串流。" },
+  "error_no_segments": { "message": "HLS 播放清單中沒有影片片段。" },
+  "error_unsupported_ts": { "message": "此 TS 串流不含受支援的 H.264/AAC 媒體。" },
+  "unknown_error": { "message": "未知錯誤" },
+  "notification_ready": { "message": "您的影片已準備完成。" },
+  "notification_complete": { "message": "下載完成" },
+  "offscreen_justification": { "message": "不開啟分頁即可下載並準備影片。" }
+}

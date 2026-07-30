@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DownloadSwift popup preview</title>
+    <link rel="stylesheet" href="../popup.css">
+  </head>
+  <body>
+    <script type="module">
+      const source = await fetch("../popup.html").then((response) => response.text());
+      const popup = new DOMParser().parseFromString(source, "text/html");
+      document.body.append(popup.querySelector("main"));
+      document.querySelector(".brand-mark img").src = "../icon.svg";
+
+      const view = new URLSearchParams(location.search).get("view") || "detected";
+      const labels = {
+        detected: ["Current tab", "Detected media"],
+        downloaded: ["This browser session", "Downloaded files"],
+        downloading: ["This browser session", "Active downloads"]
+      };
+      document.querySelector("#permission-controls").hidden = true;
+      document.querySelector("#media-controls").hidden = false;
+      document.querySelector("#detection-badge").dataset.active = "true";
+      document.querySelector("#detection-label").textContent = "Active";
+      document.querySelector("#view-eyebrow").textContent = labels[view][0];
+      document.querySelector("#view-title").textContent = labels[view][1];
+      document.querySelector("#clear").textContent = view === "downloaded" ? "Clear history" : "Clear all";
+
+      for (const name of ["detected", "downloading", "downloaded"]) {
+        document.querySelector(`#${name}-tab`).setAttribute("aria-selected", String(name === view));
+      }
+
+      const items = view === "detected" ? [
+        {
+          action: "Download",
+          filename: "Design systems workshop.mp4",
+          format: "MP4",
+          host: "media.example",
+          meta: "Video file · 84.2 MB",
+          type: "file"
+        },
+        {
+          action: "Download",
+          filename: "Product launch recording.mp4",
+          format: "HLS",
+          host: "cdn.example",
+          meta: "Stream playlist",
+          type: "playlist"
+        }
+      ] : [{
+        action: view === "downloading" ? "63%" : "Again",
+        filename: "Product launch recording.mp4",
+        format: "MP4",
+        host: "cdn.example",
+        meta: view === "downloading" ? "Downloading · Background" : "Downloaded",
+        progress: view === "downloading" ? 63 : 100,
+        status: view === "downloading"
+          ? "Converting segment 38 of 60 to MP4…"
+          : "Saved to Downloads.",
+        type: "file"
+      }];
+
+      document.querySelector("#count").textContent = String(items.length);
+      const list = document.querySelector("#media-list");
+      for (const item of items) {
+        const row = document.createElement("li");
+        row.className = "media-item";
+        row.innerHTML = `
+          <div class="format-tile ${item.type}">${item.format}</div>
+          <div class="media-details">
+            <div class="media-name">${item.filename}</div>
+            <div class="media-meta"><span class="meta-chip">${item.meta}</span></div>
+            <div class="media-host">${item.host}</div>
+          </div>
+          <div class="media-actions">
+            <button class="primary" type="button">${item.action}</button>
+            <button class="copy-button${view === "downloading" ? " cancel-button" : ""}" type="button">
+              ${view === "downloading" ? "Cancel" : "Copy link"}
+            </button>
+          </div>`;
+        if (item.status) {
+          row.insertAdjacentHTML("beforeend", `
+            <div class="job-status ${view === "downloaded" ? "complete" : ""}">
+              <span>${item.status}</span>
+              <span class="job-progress"><span style="width:${item.progress}%"></span></span>
+            </div>`);
+        }
+        list.append(row);
+      }
+    </script>
+  </body>
+</html>
