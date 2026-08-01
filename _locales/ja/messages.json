@@ -1,5 +1,5 @@
 {
-  "extension_name": { "message": "DownloadSwift" },
+  "extension_name": { "message": "Video & Media Downloader" },
   "extension_description": { "message": "直接動画ファイルと暗号化されていない HLS ストリームを、進行状況表示、MP4 出力、トラッキングなしでローカルに保存します。" },
   "brand_subtitle": { "message": "プライベート動画保存" },
   "state_off": { "message": "オフ" },
@@ -10,7 +10,7 @@
   "permission_description": { "message": "再生中の直接動画やストリームプレイリストを検出するためのアクセスを許可します。" },
   "enable_detection": { "message": "メディア検出を有効にする" },
   "disable_detection": { "message": "検出を無効にする" },
-  "privacy_disclosure": { "message": "端末内のみ：DownloadSwift はメディア URL、ページタイトル、ダウンロード状況、限定されたリクエストヘッダーをローカルで処理します。ダウンロード時には、それらのヘッダーと既存の Cookie が元の HTTPS メディアホストに送り返される場合があります。開発者には何も送信されません。" },
+  "privacy_disclosure": { "message": "端末内のみ：Video & Media Downloader はメディア URL、ページタイトル、ダウンロード状況、限定されたリクエストヘッダーをローカルで処理します。ダウンロード時には、それらのヘッダーと既存の Cookie が元の HTTPS メディアホストに送り返される場合があります。開発者には何も送信されません。" },
   "media_views": { "message": "メディア表示" },
   "tab_detected": { "message": "検出済み" },
   "tab_downloading": { "message": "ダウンロード中" },

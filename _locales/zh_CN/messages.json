@@ -1,5 +1,5 @@
 {
-  "extension_name": { "message": "DownloadSwift" },
+  "extension_name": { "message": "Video & Media Downloader" },
   "extension_description": { "message": "在本地保存直接视频文件和未加密的 HLS 流，显示进度并输出 MP4，全程无跟踪。" },
   "brand_subtitle": { "message": "私密视频保存工具" },
   "state_off": { "message": "已关闭" },
@@ -10,7 +10,7 @@
   "permission_description": { "message": "允许访问，以便在播放时检测直接视频和流媒体播放列表。" },
   "enable_detection": { "message": "启用媒体检测" },
   "disable_detection": { "message": "关闭检测" },
-  "privacy_disclosure": { "message": "仅在设备上处理：DownloadSwift 会在本地处理媒体网址、页面标题、下载状态和有限的请求标头。下载时，这些标头和现有 Cookie 可能会发回原始 HTTPS 媒体主机。不会向开发者发送任何信息。" },
+  "privacy_disclosure": { "message": "仅在设备上处理：Video & Media Downloader 会在本地处理媒体网址、页面标题、下载状态和有限的请求标头。下载时，这些标头和现有 Cookie 可能会发回原始 HTTPS 媒体主机。不会向开发者发送任何信息。" },
   "media_views": { "message": "媒体视图" },
   "tab_detected": { "message": "已检测" },
   "tab_downloading": { "message": "下载中" },

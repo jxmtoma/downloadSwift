@@ -1,5 +1,5 @@
 {
-  "extension_name": { "message": "DownloadSwift" },
+  "extension_name": { "message": "Video & Media Downloader" },
   "extension_description": { "message": "在本機儲存直接影片檔案和未加密的 HLS 串流，顯示進度並輸出 MP4，全程不追蹤。" },
   "brand_subtitle": { "message": "私密影片儲存工具" },
   "state_off": { "message": "已關閉" },
@@ -10,7 +10,7 @@
   "permission_description": { "message": "允許存取，以便在播放時偵測直接影片和串流播放清單。" },
   "enable_detection": { "message": "啟用媒體偵測" },
   "disable_detection": { "message": "關閉偵測" },
-  "privacy_disclosure": { "message": "僅在裝置上處理：DownloadSwift 會在本機處理媒體網址、頁面標題、下載狀態和有限的要求標頭。下載時，這些標頭和現有 Cookie 可能會傳回原始 HTTPS 媒體主機。不會向開發者傳送任何資訊。" },
+  "privacy_disclosure": { "message": "僅在裝置上處理：Video & Media Downloader 會在本機處理媒體網址、頁面標題、下載狀態和有限的要求標頭。下載時，這些標頭和現有 Cookie 可能會傳回原始 HTTPS 媒體主機。不會向開發者傳送任何資訊。" },
   "media_views": { "message": "媒體檢視" },
   "tab_detected": { "message": "已偵測" },
   "tab_downloading": { "message": "下載中" },

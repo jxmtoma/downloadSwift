@@ -1,5 +1,5 @@
 {
-  "extension_name": { "message": "DownloadSwift" },
+  "extension_name": { "message": "Video & Media Downloader" },
   "extension_description": { "message": "Guarda archivos de video directos y transmisiones HLS sin cifrar de forma local, con progreso, salida MP4 y sin seguimiento." },
   "brand_subtitle": { "message": "Descargador de video privado" },
   "state_off": { "message": "Desactivado" },
@@ -10,7 +10,7 @@
   "permission_description": { "message": "Permite el acceso para detectar videos directos y listas de reproducción mientras se reproducen." },
   "enable_detection": { "message": "Activar detección de contenido" },
   "disable_detection": { "message": "Desactivar detección" },
-  "privacy_disclosure": { "message": "Solo en el dispositivo: DownloadSwift procesa localmente las URL multimedia, los títulos de páginas, el estado de las descargas y encabezados de solicitud limitados. Al descargar, esos encabezados y las cookies existentes pueden enviarse de nuevo al host HTTPS original del contenido. No se envía nada al desarrollador." },
+  "privacy_disclosure": { "message": "Solo en el dispositivo: Video & Media Downloader procesa localmente las URL multimedia, los títulos de páginas, el estado de las descargas y encabezados de solicitud limitados. Al descargar, esos encabezados y las cookies existentes pueden enviarse de nuevo al host HTTPS original del contenido. No se envía nada al desarrollador." },
   "media_views": { "message": "Vistas de contenido" },
   "tab_detected": { "message": "Detectado" },
   "tab_downloading": { "message": "Descargando" },

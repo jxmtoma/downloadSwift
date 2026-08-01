@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-07-31
+
+- Rename the extension to Video & Media Downloader.
+
 ## 0.2.0 — 2026-07-29
 
 - Rename the extension to DownloadSwift and introduce a consistent icon,

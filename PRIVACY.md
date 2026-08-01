@@ -1,8 +1,8 @@
-# DownloadSwift Privacy Policy
+# Video & Media Downloader Privacy Policy
 
 Effective: July 28, 2026
 
-DownloadSwift has one purpose: detect media requested by a page the user chooses
+Video & Media Downloader has one purpose: detect media requested by a page the user chooses
 and save user-selected media to the user's device.
 
 ## Data handled on the device

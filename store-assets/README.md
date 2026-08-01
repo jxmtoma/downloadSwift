@@ -1,4 +1,4 @@
-# DownloadSwift store assets
+# Video & Media Downloader store assets
 
 - `icon-128.png`: required store icon
 - `screenshot-detected.png`: current detected-media experience, 1280×800

@@ -1,7 +1,11 @@
-# DownloadSwift
+# Video & Media Downloader
 
 A self-contained Chrome Manifest V3 extension that detects direct video files
 and HLS/DASH playlist URLs requested over HTTPS by the current tab.
+
+[Product website](https://jxmtoma.github.io/downloadSwift/) ·
+[Privacy policy](https://jxmtoma.github.io/downloadSwift/privacy/) ·
+[Support](https://jxmtoma.github.io/downloadSwift/support/)
 
 ## Load it in Chrome
 
@@ -60,4 +64,4 @@ Chrome Web Store graphics are in [`store-assets`](store-assets).
 `vendor/mux-mp4.min.js` is mux.js 6.3.0, licensed under Apache-2.0. Its license
 is included at `vendor/mux.js-LICENSE.txt`.
 
-DownloadSwift's original code is licensed under the [MIT License](LICENSE).
+Video & Media Downloader's original code is licensed under the [MIT License](LICENSE).

@@ -2,7 +2,7 @@
 
 ## Release position
 
-DownloadSwift saves direct HTTPS MP4/WebM/MOV/M4V files and supported
+Video & Media Downloader saves direct HTTPS MP4/WebM/MOV/M4V files and supported
 unencrypted, on-demand HTTPS HLS streams locally. It does not support insecure
 HTTP media, YouTube, DRM, encrypted or live HLS, byte-range HLS, separate
 audio/video tracks, DASH downloads, paywall bypassing, or access-control
@@ -15,14 +15,14 @@ Suggested short description:
 
 Suggested listing introduction:
 
-> DownloadSwift detects media on the page you choose and saves supported video
+> Video & Media Downloader detects media on the page you choose and saves supported video
 > files through a private, on-device workflow. Direct files and compatible HLS
 > streams download with progress, cancellation, sensible filenames, background
 > continuation, and completion notifications.
 
 Required listing disclosure:
 
-> DownloadSwift locally processes media URLs, page titles, download status, and
+> Video & Media Downloader locally processes media URLs, page titles, download status, and
 > limited request headers. When a user downloads a file, those limited headers
 > and existing cookies may be sent back to the original HTTPS media host.
 > Nothing is sent to the developer.
@@ -35,8 +35,14 @@ right to save.
 
 - Register the publisher, verify its email, enable 2-Step Verification, and pay
   the one-time Chrome Web Store developer fee.
-- Host `PRIVACY.md` at a public HTTPS URL and add that URL, a product website,
-  and a support page in the Developer Dashboard.
+- In repository **Settings → Pages**, choose **Deploy from a branch**, then
+  publish `main` from `/docs`. Use these Developer Dashboard URLs:
+  - Product: `https://jxmtoma.github.io/downloadSwift/`
+  - Privacy: `https://jxmtoma.github.io/downloadSwift/privacy/`
+  - Support: `https://jxmtoma.github.io/downloadSwift/support/`
+  GitHub Pages sites are public. Keeping this source repository private requires
+  GitHub Pro, Team, or Enterprise; on GitHub Free, publish `/docs` from a
+  separate public site-only repository instead.
 - In Privacy Practices, disclose handling of website content, media URLs, page
   titles, download status, limited request headers, and same-host cookies.
   Declare that data is processed locally, is not sold, and is not used outside
