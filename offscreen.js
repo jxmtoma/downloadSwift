@@ -10,6 +10,15 @@ import { downloadFilename, isSecureMediaUrl } from "./media.mjs";
 const activeFiles = new Map();
 const controllers = new Map();
 const runningJobs = new Set();
+const RETRY_DELAYS = [400, 1200];
+// Segments are buffered whole so a mid-transfer failure can be retried without
+// leaving partial bytes in the file, which caps memory at lookahead x segment size.
+// ponytail: fine for the usual few-MB segments; budget by bytes if a playlist ever
+// ships one enormous segment.
+const SEGMENT_LOOKAHEAD = 4;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const retriableStatus = (status) => status === 408 || status === 429 || status >= 500;
 
 async function report(jobId, changes) {
   await chrome.runtime.sendMessage({
@@ -22,9 +31,49 @@ async function report(jobId, changes) {
 
 async function fetchResource(url, signal) {
   if (!isSecureMediaUrl(url)) throw new Error(t("error_https_only"));
-  const response = await fetch(url, { cache: "no-store", credentials: "include", signal });
-  if (!response.ok) throw new Error(t("error_http_status", String(response.status)));
-  return response;
+
+  for (let attempt = 0; ; attempt += 1) {
+    const retryDelay = RETRY_DELAYS[attempt];
+    let response;
+
+    try {
+      response = await fetch(url, { cache: "no-store", credentials: "include", signal });
+    } catch (error) {
+      if (error.name === "AbortError" || retryDelay == null) throw error;
+      await sleep(retryDelay);
+      continue;
+    }
+
+    if (response.ok) return response;
+    if (retryDelay == null || !retriableStatus(response.status)) {
+      throw new Error(t("error_http_status", String(response.status)));
+    }
+    await sleep(retryDelay);
+  }
+}
+
+// Keeps SEGMENT_LOOKAHEAD fetches in flight while segments are consumed in order.
+async function* fetchSegments(urls, signal) {
+  const pending = [];
+  let next = 0;
+
+  const fill = () => {
+    while (pending.length < SEGMENT_LOOKAHEAD && next < urls.length) {
+      const segment = fetchResource(urls[next], signal)
+        .then(async (response) => new Uint8Array(await response.arrayBuffer()));
+      // Marks the rejection handled; it still surfaces when the segment is awaited in order.
+      segment.catch(() => {});
+      pending.push(segment);
+      next += 1;
+    }
+  };
+
+  fill();
+  while (pending.length) {
+    const bytes = await pending.shift();
+    fill();
+    yield bytes;
+  }
 }
 
 async function getMedia(item, signal) {
@@ -83,56 +132,54 @@ async function runHlsJob(job) {
     const handle = await root.getFileHandle(tempName, { create: true });
     writable = await handle.createWritable();
 
-    if (media.extension === "mp4") {
-      if (media.initUrl) {
-        const initSegment = new Uint8Array(
-          await (await fetchResource(media.initUrl, controller.signal)).arrayBuffer()
-        );
-        await writable.write(finalizeMp4Duration(
-          initSegment,
-          media.durationSeconds,
-          globalThis.muxjs
-        ));
-      }
-      for (let index = 0; index < media.segmentUrls.length; index += 1) {
-        await report(job.id, {
-          progress: Math.round(((index + 1) / media.segmentUrls.length) * 90),
-          state: "downloading",
-          status: t("status_downloading_segment", [
-            String(index + 1),
-            String(media.segmentUrls.length)
-          ])
-        });
-        const response = await fetchResource(media.segmentUrls[index], controller.signal);
-        await response.body.pipeTo(writable, { preventAbort: true, preventClose: true });
-      }
-    } else {
-      const transmux = createTsTransmuxer(globalThis.muxjs);
-      let initialized = false;
+    const transmux = media.extension === "mp4" ? null : createTsTransmuxer(globalThis.muxjs);
+    const total = media.segmentUrls.length;
+    let initialized = false;
+    let lastProgress = -1;
+    let written = 0;
 
-      for (let index = 0; index < media.segmentUrls.length; index += 1) {
+    if (!transmux && media.initUrl) {
+      const initSegment = new Uint8Array(
+        await (await fetchResource(media.initUrl, controller.signal)).arrayBuffer()
+      );
+      await writable.write(finalizeMp4Duration(
+        initSegment,
+        media.durationSeconds,
+        globalThis.muxjs
+      ));
+    }
+
+    for await (const bytes of fetchSegments(media.segmentUrls, controller.signal)) {
+      written += 1;
+      const progress = Math.round((written / total) * 90);
+      // Every report is a message plus a session-storage write plus a popup re-render,
+      // so only speak up when the percentage actually moves.
+      if (progress !== lastProgress) {
+        lastProgress = progress;
+        const counts = [String(written), String(total)];
         await report(job.id, {
-          progress: Math.round(((index + 1) / media.segmentUrls.length) * 90),
+          progress,
           state: "downloading",
-          status: t("status_converting_segment", [
-            String(index + 1),
-            String(media.segmentUrls.length)
-          ])
+          status: transmux
+            ? t("status_converting_segment", counts)
+            : t("status_downloading_segment", counts)
         });
-        const bytes = new Uint8Array(
-          await (await fetchResource(media.segmentUrls[index], controller.signal)).arrayBuffer()
-        );
-        for (const chunk of transmux(bytes)) {
-          if (!initialized) {
-            await writable.write(finalizeMp4Duration(
-              chunk.initSegment,
-              media.durationSeconds,
-              globalThis.muxjs
-            ));
-            initialized = true;
-          }
-          await writable.write(chunk.data);
+      }
+
+      if (!transmux) {
+        await writable.write(bytes);
+        continue;
+      }
+      for (const chunk of transmux(bytes)) {
+        if (!initialized) {
+          await writable.write(finalizeMp4Duration(
+            chunk.initSegment,
+            media.durationSeconds,
+            globalThis.muxjs
+          ));
+          initialized = true;
         }
+        await writable.write(chunk.data);
       }
     }
 
@@ -151,6 +198,7 @@ async function runHlsJob(job) {
       : { error: error.message, state: "error", status: error.message });
     await cleanup(job.id);
   } finally {
+    controller.abort();
     controllers.delete(job.id);
     runningJobs.delete(job.id);
   }

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0 — 2026-08-01
+
+- Detect media as soon as detection is enabled. Detection previously did not
+  begin until the background worker happened to restart, so the first attempt
+  on a page appeared to do nothing until it was reloaded several times.
+- Reload the current tab when detection is enabled, since media a page has
+  already requested cannot be observed afterwards.
+- Stop observing media requests immediately when detection is turned off.
+- Retry a stream segment that fails instead of abandoning the download.
+- Fetch stream segments concurrently, which noticeably shortens long streams.
+- Report stream progress on percentage changes rather than once per segment,
+  keeping the popup responsive on streams with many segments.
+- Start direct downloads whose URLs carry long signing tokens, which could
+  previously fail before the transfer began.
+- Apply the temporary header rule only to the extension's own requests.
+- Use the page's origin as the referrer when the original request's headers
+  are no longer available, so hosts that check it still accept the download.
+
 ## 0.2.1 — 2026-07-31
 
 - Rename the extension to Video & Media Downloader.

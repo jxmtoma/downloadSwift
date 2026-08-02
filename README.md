@@ -34,13 +34,23 @@ video pages commonly use a different CDN domain.
 For direct files, the extension streams the video through its hidden worker
 before handing Chrome a local file. It temporarily replays the detected
 request's `Referer`, `Origin`, `Accept`, and normalized `Range` headers only for
-that exact media URL. The session rule is removed as soon as the remote
-transfer finishes or fails.
+that exact media URL, and only for the extension's own requests. When no
+`Referer` was captured, the page's own origin is used in its place. The session
+rule is removed as soon as the remote transfer finishes or fails.
 
 ## Check
 
 ```sh
 node test-media.mjs && node test-hls.mjs && node test-remux.mjs && node test-download-flow.mjs && node test-presubmit.mjs
+```
+
+For manual testing, `scripts/test-server.mjs` serves local HTTPS media built from
+`test-fixtures/h264-aac.ts`, including a one-shot 503, a permanent 403, and
+hotlink protection behind a long signed URL. It prints a per-scenario checklist
+on startup.
+
+```sh
+node scripts/test-server.mjs
 ```
 
 The popup and manifest follow Chrome's browser UI language automatically.

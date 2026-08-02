@@ -363,6 +363,8 @@ enableButton.addEventListener("click", async () => {
   try {
     const allowed = await chrome.permissions.request({ origins: ORIGINS });
     if (!allowed) throw new Error(t("error_detection_not_enabled"));
+    // The page already made its media requests; only new ones can be observed.
+    if (currentTabId != null) await chrome.tabs.reload(currentTabId);
     await render();
   } catch (error) {
     setError(error);

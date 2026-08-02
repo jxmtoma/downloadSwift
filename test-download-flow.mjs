@@ -4,6 +4,7 @@ const stored = {};
 const runtimeListeners = [];
 const downloadListeners = [];
 const headersReceivedListeners = [];
+const permissionListeners = [];
 const tabRemovedListeners = [];
 const sessionRules = [];
 const sentMessages = [];
@@ -61,14 +62,35 @@ globalThis.chrome = {
     onUpdated: { addListener: () => {} }
   },
   webRequest: {
-    onBeforeSendHeaders: { addListener: () => {} },
-    onCompleted: { addListener: () => {} },
-    onErrorOccurred: { addListener: () => {} },
-    onHeadersReceived: { addListener: (listener) => headersReceivedListeners.push(listener) }
+    onBeforeSendHeaders: { addListener: () => {}, removeListener: () => {} },
+    onCompleted: { addListener: () => {}, removeListener: () => {} },
+    onErrorOccurred: { addListener: () => {}, removeListener: () => {} },
+    onHeadersReceived: {
+      addListener: (listener) => headersReceivedListeners.push(listener),
+      removeListener: (listener) => {
+        const index = headersReceivedListeners.indexOf(listener);
+        if (index >= 0) headersReceivedListeners.splice(index, 1);
+      }
+    }
   }
+};
+chrome.permissions = {
+  onAdded: { addListener: (listener) => permissionListeners.push(listener) },
+  onRemoved: { addListener: (listener) => permissionListeners.push(listener) }
 };
 
 await import("./service-worker.mjs");
+
+// Granting or revoking host access must rebind the webRequest listeners, since
+// webRequest captured the permission set it had when they were first added.
+assert.equal(headersReceivedListeners.length, 1);
+assert.equal(permissionListeners.length, 2, "both permissions.onAdded and onRemoved");
+const [onPermissionAdded] = permissionListeners;
+const originalListener = headersReceivedListeners[0];
+onPermissionAdded();
+assert.equal(headersReceivedListeners.length, 1, "re-registered, not double-registered");
+assert.notEqual(headersReceivedListeners[0], undefined);
+assert.equal(headersReceivedListeners[0], originalListener);
 
 for (const url of [
   "https://cdn.example/master.m3u8",
@@ -104,6 +126,37 @@ for (const url of [
 assert.equal(stored["media:10"].length, 1);
 assert.equal(stored["media:10"][0].name, "master.m3u8");
 
+// A service-worker restart loses the captured request context, so the page origin
+// stands in for the referer most media hosts check.
+headersReceivedListeners[0]({
+  initiator: "https://video.example",
+  requestId: "restart:1",
+  responseHeaders: [],
+  statusCode: 200,
+  tabId: 11,
+  type: "xmlhttprequest",
+  url: "https://cdn.example/restart.m3u8"
+});
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.deepEqual(stored["media:11"][0].requestHeaders, [
+  { name: "referer", value: "https://video.example/" }
+]);
+
+// Re-detecting the same URL without a context keeps the headers already captured.
+headersReceivedListeners[0]({
+  requestId: "restart:2",
+  responseHeaders: [],
+  statusCode: 200,
+  tabId: 11,
+  type: "xmlhttprequest",
+  url: "https://cdn.example/restart.m3u8"
+});
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(stored["media:11"].length, 1);
+assert.deepEqual(stored["media:11"][0].requestHeaders, [
+  { name: "referer", value: "https://video.example/" }
+]);
+
 const job = {
   id: "direct",
   item: {
@@ -131,6 +184,12 @@ assert.equal(options, undefined);
 assert.equal(sentMessages.at(-1).type, "start-direct");
 assert.equal(sentMessages.at(-1).target, "offscreen");
 assert.equal(sessionRules[0].action.requestHeaders[0].header, "referer");
+// Exact-URL match, scoped to the extension's own fetches (tabId -1), no regex.
+assert.deepEqual(sessionRules[0].condition, {
+  isUrlFilterCaseSensitive: true,
+  tabIds: [-1],
+  urlFilter: "|https://cdn.example/video.mp4|"
+});
 assert.deepEqual(sessionRules[0].action.requestHeaders[1], {
   header: "range",
   operation: "set",
@@ -217,5 +276,69 @@ const preparedMessage = await prepared;
 
 assert.equal(preparedMessage.filename, "Page title.mp4");
 assert.deepEqual([...new Uint8Array(await stagedFile.arrayBuffer())], [1, 2, 3, 4]);
+
+const SEGMENT_COUNT = 200;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const playlist = [
+  "#EXTM3U",
+  ...Array.from({ length: SEGMENT_COUNT }, (_, index) => `#EXTINF:4,\nseg${index}.m4s`),
+  "#EXT-X-ENDLIST"
+].join("\n");
+const segmentRequests = [];
+let inFlight = 0;
+let peakInFlight = 0;
+let failSegment3 = true;
+
+globalThis.fetch = async (url) => {
+  if (url.endsWith(".m3u8")) return new Response(playlist);
+
+  segmentRequests.push(url);
+  inFlight += 1;
+  peakInFlight = Math.max(peakInFlight, inFlight);
+  await sleep(1);
+  inFlight -= 1;
+
+  if (url.endsWith("seg3.m4s") && failSegment3) {
+    failSegment3 = false;
+    return new Response(null, { status: 503 });
+  }
+  return new Response(new Uint8Array([Number(url.match(/seg(\d+)\./)[1])]));
+};
+
+fileChunks.length = 0;
+const hlsPrepared = new Promise((resolve) => {
+  resolvePrepared = resolve;
+});
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-hls",
+    item: { format: "HLS", kind: "playlist", url: "https://cdn.example/720p.m3u8" },
+    pageTitle: "Page title",
+    tabId: 5
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await hlsPrepared;
+
+// Segments land in playlist order even though they are fetched concurrently.
+assert.deepEqual(
+  [...new Uint8Array(await stagedFile.arrayBuffer())],
+  Array.from({ length: SEGMENT_COUNT }, (_, index) => index)
+);
+assert.equal(peakInFlight, 4, "segments should be prefetched, not fetched one at a time");
+// The 503 on seg3 is retried rather than failing the whole job.
+assert.equal(segmentRequests.filter((url) => url.endsWith("seg3.m4s")).length, 2);
+
+const hlsReports = sentMessages.filter((message) => (
+  message.type === "hls-progress" && message.jobId === "offscreen-hls"
+));
+assert.equal(hlsReports.at(-1).changes.state, "saving");
+// One report per distinct percentage bucket (0..90), not one per segment.
+assert.equal(
+  hlsReports.filter((message) => message.changes.state === "downloading").length,
+  91,
+  "progress reports must be throttled to percentage changes, not one per segment"
+);
 
 console.log("managed and direct download flow check passed");

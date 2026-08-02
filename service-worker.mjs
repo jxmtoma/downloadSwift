@@ -26,6 +26,16 @@ function isMasterHls(item) {
   return /(?:^|[._-])master(?:[._-]|$)/i.test(item.name);
 }
 
+// A service-worker restart between onBeforeSendHeaders and onHeadersReceived drops
+// the in-flight context, and Chrome does not replay it. Fall back to what the item
+// already carries, then to the page origin, which is what hotlink checks look at.
+function replayHeaders(captured, previous, initiator) {
+  const headers = captured?.length ? captured : previous?.requestHeaders ?? [];
+  if (headers.some((header) => header.name === "referer")) return headers;
+  if (!initiator?.startsWith("https://")) return headers;
+  return [...headers, { name: "referer", value: `${initiator}/` }];
+}
+
 function recordMedia(details) {
   if (details.tabId < 0) return;
 
@@ -51,10 +61,10 @@ function recordMedia(details) {
       }
     }
     const duplicate = items.findIndex((item) => item.url === details.url);
-    if (duplicate >= 0) items.splice(duplicate, 1);
+    const previous = duplicate >= 0 ? items.splice(duplicate, 1)[0] : null;
     items.unshift({
       ...media,
-      requestHeaders: requestContext?.headers ?? [],
+      requestHeaders: replayHeaders(requestContext?.headers, previous, details.initiator),
       seenAt: Date.now(),
       url: details.url
     });
@@ -132,10 +142,6 @@ async function restoreDownloadUiIfIdle() {
   if (!active) await chrome.downloads.setUiOptions({ enabled: true }).catch(() => {});
 }
 
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 async function addHeaderReplayRule(url, headers) {
   if (!isSecureMediaUrl(url)) throw new Error(t("error_https_only"));
   if (!headers?.length) return null;
@@ -151,7 +157,14 @@ async function addHeaderReplayRule(url, headers) {
         })),
         type: "modifyHeaders"
       },
-      condition: { regexFilter: `^${escapeRegex(url)}$` },
+      // Anchored urlFilter instead of regexFilter: signed CDN URLs are long enough
+      // to trip Chrome's per-rule regex memory budget. tabIds -1 keeps the rewrite
+      // on the extension's own fetches, never on page-initiated requests.
+      condition: {
+        isUrlFilterCaseSensitive: true,
+        tabIds: [-1],
+        urlFilter: `|${url}|`
+      },
       id: ruleId,
       priority: 1
     }]
@@ -269,18 +282,34 @@ async function cancelJob(jobId) {
   if (job.ruleId != null) await updateJob(jobId, { ruleId: null });
 }
 
-chrome.webRequest.onHeadersReceived.addListener(
-  recordMedia,
-  MEDIA_REQUEST_FILTER,
-  ["responseHeaders"]
-);
-chrome.webRequest.onBeforeSendHeaders.addListener(
-  captureRequestContext,
-  MEDIA_REQUEST_FILTER,
-  ["extraHeaders", "requestHeaders"]
-);
-chrome.webRequest.onCompleted.addListener(forgetRequestContext, MEDIA_REQUEST_FILTER);
-chrome.webRequest.onErrorOccurred.addListener(forgetRequestContext, MEDIA_REQUEST_FILTER);
+// webRequest binds the host permissions the extension held when the listener was
+// added, so listeners registered before the user grants access never see those
+// hosts, and listeners registered while access was granted would keep seeing them
+// after it is revoked. Re-register on both edges; without this, detection only
+// starts working once the worker happens to restart.
+function registerMediaListeners() {
+  chrome.webRequest.onHeadersReceived.removeListener(recordMedia);
+  chrome.webRequest.onBeforeSendHeaders.removeListener(captureRequestContext);
+  chrome.webRequest.onCompleted.removeListener(forgetRequestContext);
+  chrome.webRequest.onErrorOccurred.removeListener(forgetRequestContext);
+
+  chrome.webRequest.onHeadersReceived.addListener(
+    recordMedia,
+    MEDIA_REQUEST_FILTER,
+    ["responseHeaders"]
+  );
+  chrome.webRequest.onBeforeSendHeaders.addListener(
+    captureRequestContext,
+    MEDIA_REQUEST_FILTER,
+    ["extraHeaders", "requestHeaders"]
+  );
+  chrome.webRequest.onCompleted.addListener(forgetRequestContext, MEDIA_REQUEST_FILTER);
+  chrome.webRequest.onErrorOccurred.addListener(forgetRequestContext, MEDIA_REQUEST_FILTER);
+}
+
+registerMediaListeners();
+chrome.permissions.onAdded.addListener(registerMediaListeners);
+chrome.permissions.onRemoved.addListener(registerMediaListeners);
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === "loading") clearTab(tabId);
