@@ -126,6 +126,53 @@ for (const url of [
 assert.equal(stored["media:10"].length, 1);
 assert.equal(stored["media:10"][0].name, "master.m3u8");
 
+// Two embedded players are two streams: their directories do not nest, so each
+// keeps an entry, while a variant below a master still collapses into it.
+for (const url of [
+  "https://cdn.example/hls/first/master.m3u8",
+  "https://cdn.example/hls/first/720p/index.m3u8",
+  "https://cdn.example/hls/second/master.m3u8"
+]) {
+  headersReceivedListeners[0]({
+    requestId: `multi:${url}`,
+    responseHeaders: [],
+    statusCode: 200,
+    tabId: 12,
+    type: "xmlhttprequest",
+    url
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+assert.deepEqual(stored["media:12"].map((item) => item.url), [
+  "https://cdn.example/hls/second/master.m3u8",
+  "https://cdn.example/hls/first/master.m3u8"
+]);
+
+// fMP4 segments are video/mp4 files by every test a single response can make, so
+// they are ruled out by where they sit and by nobody playing them directly.
+for (const [type, url] of [
+  ["xmlhttprequest", "https://cdn.example/vod/fmp4/index.m3u8"],
+  ["xmlhttprequest", "https://cdn.example/vod/fmp4/init.mp4"],
+  ["xmlhttprequest", "https://cdn.example/vod/fmp4/seg1.mp4"],
+  ["xmlhttprequest", "https://cdn.example/media/other.mp4"],
+  ["media", "https://cdn.example/vod/fmp4/preview.mp4"]
+]) {
+  headersReceivedListeners[0]({
+    requestId: `fmp4:${url}`,
+    responseHeaders: [],
+    statusCode: 200,
+    tabId: 13,
+    type,
+    url
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+assert.deepEqual(stored["media:13"].map((item) => item.url), [
+  "https://cdn.example/vod/fmp4/preview.mp4",
+  "https://cdn.example/media/other.mp4",
+  "https://cdn.example/vod/fmp4/index.m3u8"
+]);
+
 // A service-worker restart loses the captured request context, so the page origin
 // stands in for the referer most media hosts check.
 headersReceivedListeners[0]({
@@ -229,6 +276,59 @@ assert.equal(sessionRules.length, 0);
 assert.equal(uiStates.at(-1), true);
 assert.equal(notifications[0].notification.message, "Page title.mp4");
 
+const hlsJob = {
+  id: "hls",
+  item: {
+    format: "HLS",
+    kind: "playlist",
+    requestHeaders: [{ name: "referer", value: "https://video.example/watch/1" }],
+    url: "https://cdn.example/hls/master.m3u8"
+  },
+  state: "queued",
+  tabId: 6
+};
+stored["download-job:hls"] = hlsJob;
+
+const hlsResponse = await new Promise((resolve) => {
+  runtimeListeners[0]({ job: hlsJob, target: "service-worker", type: "start-hls" }, null, resolve);
+});
+
+// Streams replay the page referer too, or hotlink-protected hosts answer 403.
+// Segment URLs are unknown until the playlist is parsed, so the rule starts
+// scoped to the playlist's host.
+assert.equal(hlsResponse.ok, true);
+assert.equal(sessionRules.length, 1);
+assert.deepEqual(sessionRules[0].condition, {
+  requestDomains: ["cdn.example"],
+  tabIds: [-1]
+});
+assert.deepEqual(sessionRules[0].action.requestHeaders, [
+  { header: "referer", operation: "set", value: "https://video.example/watch/1" }
+]);
+assert.equal(stored["download-job:hls"].ruleId, sessionRules[0].id);
+
+await new Promise((resolve) => {
+  runtimeListeners[0]({
+    hosts: ["cdn.example", "segments.example"],
+    jobId: "hls",
+    target: "service-worker",
+    type: "extend-headers"
+  }, null, resolve);
+});
+
+assert.equal(sessionRules.length, 1, "the widened rule replaces the original");
+assert.deepEqual(sessionRules[0].condition.requestDomains, ["cdn.example", "segments.example"]);
+assert.equal(stored["download-job:hls"].ruleId, sessionRules[0].id);
+
+await new Promise((resolve) => {
+  runtimeListeners[0]({
+    jobId: "hls",
+    target: "service-worker",
+    type: "cancel-download"
+  }, null, resolve);
+});
+assert.equal(sessionRules.length, 0, "canceling a stream drops its header rule");
+
 let stagedFile;
 let resolvePrepared;
 const prepared = new Promise((resolve) => {
@@ -321,6 +421,11 @@ runtimeListeners[1]({
 }, null, () => {});
 await hlsPrepared;
 
+// The parsed playlist tells the worker which hosts the segments come from.
+assert.deepEqual(
+  sentMessages.find((message) => message.type === "extend-headers").hosts,
+  ["cdn.example"]
+);
 // Segments land in playlist order even though they are fetched concurrently.
 assert.deepEqual(
   [...new Uint8Array(await stagedFile.arrayBuffer())],

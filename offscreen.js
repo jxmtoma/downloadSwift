@@ -127,6 +127,16 @@ async function runHlsJob(job) {
       status: t("status_reading_hls")
     });
     const media = await getMedia(job.item, controller.signal);
+    // The header replay rule starts scoped to the playlist's host; segments on a
+    // different CDN host need it too, and only the playlist says where they live.
+    await chrome.runtime.sendMessage({
+      hosts: [...new Set([media.initUrl, ...media.segmentUrls]
+        .filter(Boolean)
+        .map((url) => new URL(url).hostname))],
+      jobId: job.id,
+      target: "service-worker",
+      type: "extend-headers"
+    });
     const root = await navigator.storage.getDirectory();
     tempName = `downloadswift-${job.id}.mp4`;
     const handle = await root.getFileHandle(tempName, { create: true });

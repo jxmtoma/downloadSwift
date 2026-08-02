@@ -26,6 +26,11 @@ function isMasterHls(item) {
   return /(?:^|[._-])master(?:[._-]|$)/i.test(item.name);
 }
 
+function playlistDirectory(rawUrl) {
+  const url = new URL(rawUrl);
+  return `${url.origin}${url.pathname.replace(/[^/]*$/, "")}`;
+}
+
 // A service-worker restart between onBeforeSendHeaders and onHeadersReceived drops
 // the in-flight context, and Chrome does not replay it. Fall back to what the item
 // already carries, then to the page origin, which is what hotlink checks look at.
@@ -50,14 +55,37 @@ function recordMedia(details) {
     const stored = await chrome.storage.session.get(key);
     const items = stored[key] ?? [];
 
+    // A stream's segments sit under its playlist's directory and a player pulls
+    // them with fetch, never as a <video> load. That is the only thing separating
+    // seg0.mp4 from a real file, since both are just video/mp4 over XHR. What the
+    // page actually plays is kept however it is named.
+    if (media.kind === "file" && details.type !== "media") {
+      const directory = playlistDirectory(details.url);
+      const belongsToStream = items.some((item) => (
+        item.kind === "playlist" && directory.startsWith(playlistDirectory(item.url))
+      ));
+      if (belongsToStream) return;
+    }
+
     if (media.format === "HLS") {
-      const existingHls = items.find((item) => item.format === "HLS" && item.url !== details.url);
-      // ponytail: one HLS per tab; add stream grouping if multi-video pages need it.
-      if (existingHls && (!isMasterHls(media) || isMasterHls(existingHls))) return;
-      if (existingHls) {
-        for (let index = items.length - 1; index >= 0; index -= 1) {
-          if (items[index].format === "HLS") items.splice(index, 1);
-        }
+      // A stream's variants sit in its master's directory or below it, so two
+      // playlists are the same video only when their directories nest. Collapsing
+      // every HLS in the tab instead hid all but one player on pages that embed
+      // several videos.
+      const directory = playlistDirectory(details.url);
+      const related = items.filter((item) => {
+        if (item.format !== "HLS" || item.url === details.url) return false;
+        const other = playlistDirectory(item.url);
+        return directory.startsWith(other) || other.startsWith(directory);
+      });
+      const covered = related.some((item) => (
+        playlistDirectory(item.url).length < directory.length || isMasterHls(item)
+      ));
+      if (covered && !isMasterHls(media)) return;
+      for (let index = items.length - 1; index >= 0; index -= 1) {
+        const item = items[index];
+        if (!related.includes(item) || isMasterHls(item)) continue;
+        if (playlistDirectory(item.url).length >= directory.length) items.splice(index, 1);
       }
     }
     const duplicate = items.findIndex((item) => item.url === details.url);
@@ -142,8 +170,22 @@ async function restoreDownloadUiIfIdle() {
   if (!active) await chrome.downloads.setUiOptions({ enabled: true }).catch(() => {});
 }
 
-async function addHeaderReplayRule(url, headers) {
-  if (!isSecureMediaUrl(url)) throw new Error(t("error_https_only"));
+// Anchored urlFilter instead of regexFilter: signed CDN URLs are long enough
+// to trip Chrome's per-rule regex memory budget. tabIds -1 keeps the rewrite
+// on the extension's own fetches, never on page-initiated requests.
+const exactUrlCondition = (url) => ({
+  isUrlFilterCaseSensitive: true,
+  tabIds: [-1],
+  urlFilter: `|${url}|`
+});
+
+// A stream's segment URLs are only known once its playlist is parsed, so scope
+// the rule by host and widen it when the offscreen document reports the rest.
+// ponytail: two jobs on one host share whichever referer Chrome picks; scope by
+// rule priority if that ever matters.
+const hostCondition = (hosts) => ({ requestDomains: hosts, tabIds: [-1] });
+
+async function addHeaderReplayRule(condition, headers) {
   if (!headers?.length) return null;
   const rules = await chrome.declarativeNetRequest.getSessionRules();
   const ruleId = Math.max(0, ...rules.map((rule) => rule.id)) + 1;
@@ -157,14 +199,7 @@ async function addHeaderReplayRule(url, headers) {
         })),
         type: "modifyHeaders"
       },
-      // Anchored urlFilter instead of regexFilter: signed CDN URLs are long enough
-      // to trip Chrome's per-rule regex memory budget. tabIds -1 keeps the rewrite
-      // on the extension's own fetches, never on page-initiated requests.
-      condition: {
-        isUrlFilterCaseSensitive: true,
-        tabIds: [-1],
-        urlFilter: `|${url}|`
-      },
+      condition,
       id: ruleId,
       priority: 1
     }]
@@ -209,14 +244,58 @@ async function startManagedDownload({ filename, jobId, offscreen = false, url })
   }
 }
 
+// Hotlink-protected hosts reject the offscreen document's fetches unless the
+// page's referer comes along. Direct downloads have always replayed it; streams
+// did not, so their playlist and segment fetches came back as plain 403s.
+async function startHlsJob(job) {
+  let ruleId;
+  try {
+    if (!isSecureMediaUrl(job.item.url)) throw new Error(t("error_https_only"));
+    ruleId = await addHeaderReplayRule(
+      hostCondition([new URL(job.item.url).hostname]),
+      job.item.requestHeaders
+    );
+    await updateJob(job.id, { ruleId });
+    await sendToOffscreen({ job, type: "start-hls" });
+    return { ok: true };
+  } catch (error) {
+    await removeHeaderReplayRule(ruleId).catch(() => {});
+    await updateJob(job.id, {
+      error: error.message,
+      ruleId: null,
+      state: "error",
+      status: t("error_start_hls")
+    });
+    return { error: error.message, ok: false };
+  }
+}
+
+async function extendHeaderReplayRule(jobId, hosts) {
+  const key = jobKey(jobId);
+  const stored = await chrome.storage.session.get(key);
+  const job = stored[key];
+  if (!job || job.ruleId == null) return;
+
+  const domains = new Set([new URL(job.item.url).hostname, ...hosts]);
+  if (domains.size === 1) return;
+  // Added before the old rule goes away so no fetch slips through unlabelled.
+  const ruleId = await addHeaderReplayRule(
+    hostCondition([...domains]),
+    job.item.requestHeaders
+  );
+  await removeHeaderReplayRule(job.ruleId);
+  await updateJob(jobId, { ruleId });
+}
+
 async function startDirectJob({ filename, job }) {
   let ruleId;
   try {
+    if (!isSecureMediaUrl(job.item.url)) throw new Error(t("error_https_only"));
     const headers = [...(job.item.requestHeaders ?? [])];
     if (!headers.some((header) => header.name === "range")) {
       headers.push({ name: "range", value: "bytes=0-" });
     }
-    ruleId = await addHeaderReplayRule(job.item.url, headers);
+    ruleId = await addHeaderReplayRule(exactUrlCondition(job.item.url), headers);
     await updateJob(job.id, {
       progress: 0,
       ruleId,
@@ -324,16 +403,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.target !== "service-worker") return;
 
   if (message.type === "start-hls") {
-    sendToOffscreen({ job: message.job, type: "start-hls" })
+    startHlsJob(message.job).then(sendResponse);
+    return true;
+  }
+
+  if (message.type === "extend-headers") {
+    extendHeaderReplayRule(message.jobId, message.hosts)
       .then(() => sendResponse({ ok: true }))
-      .catch((error) => {
-        updateJob(message.job.id, {
-          error: error.message,
-          state: "error",
-          status: t("error_start_hls")
-        });
-        sendResponse({ error: error.message, ok: false });
-      });
+      .catch((error) => sendResponse({ error: error.message, ok: false }));
     return true;
   }
 

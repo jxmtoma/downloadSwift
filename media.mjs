@@ -7,6 +7,13 @@ const PLAYLIST_MIMES = new Set([
   "application/x-mpegurl"
 ]);
 const SEGMENT_EXTENSIONS = new Set(["aac", "cmfa", "cmfv", "m4s", "ts", "vtt"]);
+// Container mimes belong to whole files; these only ever label stream segments,
+// which is the one thing an extensionless URL cannot tell us apart from a file.
+const SEGMENT_MIMES = new Set([
+  "video/iso.segment",
+  "video/mp2t",
+  "video/vnd.dlna.mpeg-tts"
+]);
 
 export function isSecureMediaUrl(rawUrl) {
   try {
@@ -72,7 +79,7 @@ function urlParts(rawUrl) {
   };
 }
 
-export function detectMedia({ responseHeaders = [], type, url }) {
+export function detectMedia({ responseHeaders = [], url }) {
   if (!isSecureMediaUrl(url)) return null;
   if (blockedMediaHost(url)) return null;
 
@@ -88,7 +95,9 @@ export function detectMedia({ responseHeaders = [], type, url }) {
     return { format, kind: "playlist", mime, name, size };
   }
 
-  if (FILE_EXTENSIONS.has(extension) || (type === "media" && mime.startsWith("video/"))) {
+  // Any request type, not just <video> loads: an embedded player usually pulls its
+  // file over fetch or XHR, and those URLs often carry no extension at all.
+  if (FILE_EXTENSIONS.has(extension) || (mime.startsWith("video/") && !SEGMENT_MIMES.has(mime))) {
     const format = extension ? extension.toUpperCase() : mime.slice(6).toUpperCase();
     return { format, kind: "file", mime, name, size };
   }

@@ -124,6 +124,10 @@ const scenarios = {
     fetches: `/vod/forbidden.m3u8`,
     title: "HLS where segment 5 always returns 403 - must fail fast"
   },
+  hotlink: {
+    fetches: `/vod/hotlink.m3u8`,
+    title: "HLS, hotlink-protected playlist and segments - referer replay"
+  },
   direct: {
     title: "Direct MP4, hotlink-protected, very long signed URL",
     video: `${clipPath}${signature}`
@@ -163,7 +167,7 @@ function indexPage() {
   return `<!doctype html><meta charset="utf-8"><title>DownloadSwift test media</title>
     <body style="font:14px system-ui;max-width:60rem;margin:3rem auto;padding:0 1rem">
     <h1>DownloadSwift test media</h1>
-    <p>Open each scenario in its own tab - the detector keeps one HLS playlist per tab.</p>
+    <p>Open each scenario in its own tab - the detector keeps one entry per stream.</p>
     <ul>${rows}</ul>
     <p><a href="/reset">Re-arm the one-shot 503</a></p>`;
 }
@@ -179,6 +183,10 @@ function send(response, status, type, body, extraHeaders = {}) {
 }
 
 async function serveSegment(request, response, index, playlist) {
+  if (playlist === "hotlink" && !request.headers.referer) {
+    log(`segment ${index}: 403, no referer. The rule did not reach the segment host.`);
+    return send(response, 403, "text/plain", "referer required");
+  }
   if (playlist === "forbidden" && index === 5) {
     log(`segment ${index}: 403 (permanent - the job should fail immediately)`);
     return send(response, 403, "text/plain", "forbidden");
@@ -251,6 +259,15 @@ https.createServer({
     return send(response, 200, "application/vnd.apple.mpegurl",
       tsPlaylist(20).replace(/\/seg\/ts\//g, "/seg/forbidden/"));
   }
+  if (route === "/vod/hotlink.m3u8") {
+    log(`hotlink playlist requested with referer: ${request.headers.referer || "(none)"}`);
+    if (!request.headers.referer) {
+      log("  -> 403: the stream never replayed the referer the page sent.");
+      return send(response, 403, "text/plain", "referer required");
+    }
+    return send(response, 200, "application/vnd.apple.mpegurl",
+      tsPlaylist(SHORT_SEGMENTS).replace(/\/seg\/ts\//g, "/seg/hotlink/"));
+  }
 
   const segment = route.match(/^\/seg\/([\w-]+)\/(\d+)\.ts$/);
   if (segment) return serveSegment(request, response, Number(segment[2]), segment[1]);
@@ -301,6 +318,10 @@ Open ${origin}/ and enable detection in the popup.
                                      again: it should log "${origin}/" and still
                                      succeed. Before the fix it logged "(none)"
                                      and 403'd.
+  6  stream referer /watch/hotlink   playlist and segments both demand a referer;
+                                     this window logs "${origin}/watch/hotlink"
+                                     for each. Before the fix both logged
+                                     "(none)" and the job failed with an HTTP 403
      playable       /watch/ts-short  open the saved file - 26.8s, seekable
      fmp4 branch    /watch/fmp4      the non-transmux path, also playable
 `);

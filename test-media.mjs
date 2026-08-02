@@ -21,14 +21,26 @@ assert.equal(detectMedia({
   type: "media",
   url: "https://cdn.example/signed?id=1"
 }).kind, "file");
+// Embedded players fetch their file over XHR from URLs with no extension.
 assert.equal(detectMedia({
   responseHeaders: header("video/mp4"),
   type: "xmlhttprequest",
-  url: "https://cdn.example/segment?id=1"
-}), null);
+  url: "https://cdn.example/play/8fj2?token=1"
+}).kind, "file");
 assert.equal(detectMedia({
   responseHeaders: header("video/mp2t"),
   url: "https://cdn.example/segment-1.ts"
+}), null);
+// A segment-only mime is the one hint an extensionless URL still gives us.
+assert.equal(detectMedia({
+  responseHeaders: header("video/mp2t"),
+  type: "xmlhttprequest",
+  url: "https://cdn.example/seg/1174"
+}), null);
+assert.equal(detectMedia({
+  responseHeaders: header("video/iso.segment"),
+  type: "xmlhttprequest",
+  url: "https://cdn.example/seg/1174"
 }), null);
 assert.equal(detectMedia({
   responseHeaders: header("image/png"),

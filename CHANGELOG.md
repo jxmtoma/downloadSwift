@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 — 2026-08-02
+
+- Keep one entry per stream rather than one per tab, so a page that embeds
+  several players no longer shows just one of its videos.
+- Detect video files a player fetches in the background, including URLs that
+  carry no file extension, which embedded players commonly use.
+- Stop listing a stream's own segments as separate videos, including segments
+  named like ordinary MP4 files.
+- Send the page's referrer when downloading a stream, as direct downloads
+  already did. Streams from hosts that check it failed with an HTTP error.
+
 ## 0.3.0 — 2026-08-01
 
 - Detect media as soon as detection is enabled. Detection previously did not
