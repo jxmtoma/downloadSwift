@@ -19,6 +19,9 @@ const SEGMENT_LOOKAHEAD = 4;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const retriableStatus = (status) => status === 408 || status === 429 || status >= 500;
+const estimateEnd = (startedAt, completed, total) => completed && completed < total
+  ? new Date(Date.now() + Math.max(1000, ((Date.now() - startedAt) * (total - completed)) / completed)).toISOString()
+  : null;
 
 async function report(jobId, changes) {
   await chrome.runtime.sendMessage({
@@ -99,6 +102,7 @@ async function offerDownload(job, handle, tempName, filename) {
   const url = URL.createObjectURL(await handle.getFile());
   activeFiles.set(job.id, { tempName, url });
   await report(job.id, {
+    estimatedEndTime: null,
     filename,
     progress: 95,
     state: "saving",
@@ -144,6 +148,7 @@ async function runHlsJob(job) {
 
     const transmux = media.extension === "mp4" ? null : createTsTransmuxer(globalThis.muxjs);
     const total = media.segmentUrls.length;
+    const startedAt = Date.now();
     let initialized = false;
     let lastProgress = -1;
     let written = 0;
@@ -168,6 +173,7 @@ async function runHlsJob(job) {
         lastProgress = progress;
         const counts = [String(written), String(total)];
         await report(job.id, {
+          estimatedEndTime: estimateEnd(startedAt, written, total),
           progress,
           state: "downloading",
           status: transmux
@@ -204,8 +210,8 @@ async function runHlsJob(job) {
       await root.removeEntry(tempName).catch(() => {});
     }
     await report(job.id, error.name === "AbortError"
-      ? { error: null, state: "canceled", status: t("status_canceled") }
-      : { error: error.message, state: "error", status: error.message });
+      ? { error: null, estimatedEndTime: null, state: "canceled", status: t("status_canceled") }
+      : { error: error.message, estimatedEndTime: null, state: "error", status: error.message });
     await cleanup(job.id);
   } finally {
     controller.abort();
@@ -237,6 +243,7 @@ async function runDirectJob(job, filename) {
     const handle = await root.getFileHandle(tempName, { create: true });
     writable = await handle.createWritable();
     const reader = response.body.getReader();
+    const startedAt = Date.now();
     let received = 0;
     let lastProgress = -1;
     let nextReportAt = 0;
@@ -251,6 +258,7 @@ async function runDirectJob(job, filename) {
       lastProgress = progress;
       nextReportAt = received + (5 * 1024 * 1024);
       await report(job.id, {
+        estimatedEndTime: estimateEnd(startedAt, received, total),
         progress,
         state: "downloading",
         status: total
@@ -271,8 +279,8 @@ async function runDirectJob(job, filename) {
       await root.removeEntry(tempName).catch(() => {});
     }
     await report(job.id, error.name === "AbortError"
-      ? { error: null, state: "canceled", status: t("status_canceled") }
-      : { error: error.message, state: "error", status: error.message });
+      ? { error: null, estimatedEndTime: null, state: "canceled", status: t("status_canceled") }
+      : { error: error.message, estimatedEndTime: null, state: "error", status: error.message });
     await cleanup(job.id);
   } finally {
     controllers.delete(job.id);

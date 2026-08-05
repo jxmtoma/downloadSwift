@@ -9,6 +9,9 @@ const tabRemovedListeners = [];
 const sessionRules = [];
 const sentMessages = [];
 const notifications = [];
+const notificationButtonListeners = [];
+const openedDownloads = [];
+const shownDownloads = [];
 const uiStates = [];
 let options;
 
@@ -31,10 +34,13 @@ globalThis.chrome = {
       return 7;
     },
     onChanged: { addListener: (listener) => downloadListeners.push(listener) },
-    setUiOptions: async ({ enabled }) => uiStates.push(enabled)
+    open: (id) => openedDownloads.push(id),
+    setUiOptions: async ({ enabled }) => uiStates.push(enabled),
+    show: (id) => shownDownloads.push(id)
   },
   notifications: {
-    create: async (id, notification) => notifications.push({ id, notification })
+    create: async (id, notification) => notifications.push({ id, notification }),
+    onButtonClicked: { addListener: (listener) => notificationButtonListeners.push(listener) }
   },
   offscreen: { createDocument: async () => {} },
   runtime: {
@@ -275,6 +281,14 @@ assert.equal(stored["download-job:direct"].state, "complete");
 assert.equal(sessionRules.length, 0);
 assert.equal(uiStates.at(-1), true);
 assert.equal(notifications[0].notification.message, "Page title.mp4");
+assert.deepEqual(notifications[0].notification.buttons, [
+  { title: "open_file" },
+  { title: "show_in_folder" }
+]);
+notificationButtonListeners[0](notifications[0].id, 0);
+notificationButtonListeners[0](notifications[0].id, 1);
+assert.deepEqual(openedDownloads, [7]);
+assert.deepEqual(shownDownloads, [7]);
 
 const hlsJob = {
   id: "hls",
@@ -445,5 +459,8 @@ assert.equal(
   91,
   "progress reports must be throttled to percentage changes, not one per segment"
 );
+assert.ok(hlsReports.some((message) => Number.isFinite(
+  Date.parse(message.changes.estimatedEndTime)
+)), "stream progress includes an estimated completion time");
 
 console.log("managed and direct download flow check passed");

@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "A detecção de mídia não foi ativada." },
   "error_no_active_tab": { "message": "Nenhuma guia ativa foi encontrada." },
   "error_start_hls": { "message": "Não foi possível iniciar o download HLS." },
-  "error_chrome_interrupted": { "message": "O Chrome interrompeu o download." },
-  "error_chrome_save": { "message": "O Chrome não conseguiu salvar o download." },
+  "error_chrome_interrupted": { "message": "O navegador interrompeu o download." },
+  "error_chrome_save": { "message": "O navegador não conseguiu salvar o download." },
   "error_https_only": { "message": "Somente mídias HTTPS são compatíveis." },
   "error_http_status": {
     "message": "O servidor retornou HTTP $status$.",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "erro desconhecido" },
   "notification_ready": { "message": "Seu vídeo está pronto." },
   "notification_complete": { "message": "Download concluído" },
+  "open_file": { "message": "Abrir arquivo" },
+  "show_in_folder": { "message": "Mostrar na pasta" },
   "offscreen_justification": { "message": "Baixar e preparar o vídeo sem abrir uma guia." }
 }

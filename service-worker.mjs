@@ -3,6 +3,7 @@ import { t } from "./i18n.mjs";
 
 const MAX_ITEMS_PER_TAB = 50;
 const OFFSCREEN_PATH = "offscreen.html";
+const COMPLETE_NOTIFICATION_PREFIX = "download-complete:";
 const MEDIA_REQUEST_FILTER = {
   types: ["media", "other", "xmlhttprequest"],
   urls: ["https://*/*"]
@@ -221,6 +222,7 @@ async function startManagedDownload({ filename, jobId, offscreen = false, url })
       chrome.storage.session.set({ [downloadKey(downloadId)]: { jobId, offscreen } }),
       updateJob(jobId, {
         downloadId,
+        estimatedEndTime: null,
         filename,
         progress: 95,
         state: "downloading",
@@ -349,6 +351,7 @@ async function cancelJob(jobId) {
 
   await updateJob(jobId, {
     error: null,
+    estimatedEndTime: null,
     state: "canceled",
     status: t("status_canceled")
   });
@@ -455,16 +458,21 @@ chrome.downloads.onChanged.addListener((change) => {
     const canceled = jobStored[jobKey(jobId)]?.state === "canceled";
     if (!canceled) {
       await updateJob(jobId, finished
-        ? { progress: 100, state: "complete", status: t("status_saved") }
+        ? { estimatedEndTime: null, progress: 100, state: "complete", status: t("status_saved") }
         : {
           error: change.error?.current || t("error_chrome_interrupted"),
+          estimatedEndTime: null,
           state: "error",
           status: t("status_download_failed_reason", [
             change.error?.current || t("unknown_error")
           ])
         });
       if (finished) {
-        await chrome.notifications.create(`download-complete:${change.id}`, {
+        await chrome.notifications.create(`${COMPLETE_NOTIFICATION_PREFIX}${change.id}`, {
+          buttons: [
+            { title: t("open_file") },
+            { title: t("show_in_folder") }
+          ],
           contextMessage: t("status_saved"),
           iconUrl: chrome.runtime.getURL("icons/icon-128.png"),
           message: jobStored[jobKey(jobId)]?.filename || t("notification_ready"),
@@ -479,6 +487,14 @@ chrome.downloads.onChanged.addListener((change) => {
     }
     await restoreDownloadUiIfIdle();
   });
+});
+
+chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+  if (!notificationId.startsWith(COMPLETE_NOTIFICATION_PREFIX)) return;
+  const downloadId = Number(notificationId.slice(COMPLETE_NOTIFICATION_PREFIX.length));
+  if (!Number.isInteger(downloadId)) return;
+  if (buttonIndex === 0) chrome.downloads.open(downloadId);
+  if (buttonIndex === 1) chrome.downloads.show(downloadId);
 });
 
 chrome.runtime.onStartup.addListener(() => {

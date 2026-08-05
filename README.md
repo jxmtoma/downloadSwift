@@ -1,15 +1,15 @@
 # Video & Media Downloader
 
-A self-contained Chrome Manifest V3 extension that detects direct video files
-and HLS/DASH playlist URLs requested over HTTPS by the current tab.
+A self-contained Manifest V3 extension for Chrome and Microsoft Edge that detects
+direct video files and HLS/DASH playlist URLs requested over HTTPS by the current tab.
 
 [Product website](https://jxmtoma.github.io/downloadSwift/) ·
 [Privacy policy](https://jxmtoma.github.io/downloadSwift/privacy/) ·
 [Support](https://jxmtoma.github.io/downloadSwift/support/)
 
-## Load it in Chrome
+## Load it in Chrome or Microsoft Edge
 
-1. Open `chrome://extensions`.
+1. Open `chrome://extensions` in Chrome or `edge://extensions` in Edge.
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select this directory.
 4. Open the extension and enable media detection.
@@ -19,20 +19,21 @@ Direct video files can be downloaded. Unencrypted on-demand HLS (`.m3u8`)
 streams with combined audio and video are saved as MP4. MPEG-TS streams using
 H.264/AAC are transmuxed without re-encoding and finalized with a seekable
 timeline. Direct and HLS downloads use the extension's progress UI and save
-automatically to Chrome's default Downloads folder. Active progress is visible
+automatically to the browser's default Downloads folder. Active progress is visible
 from the popup on any tab, downloads continue after their source tab closes, and
-Chrome sends a notification when each file is saved. The popup separates
+the browser sends a notification with actions to open each saved file or show it in
+its folder. The popup separates
 **Detected**, **Downloading**, and **Downloaded** media for the current browser
 session. The detector keeps one HLS playlist per tab and prefers a `master.m3u8`
 URL when available. DASH (`.mpd`) playlist URLs can be copied for use in a
 compatible player such as VLC.
 
-Media URLs are stored only in Chrome's in-memory session storage and are never
+Media URLs are stored only in the browser's in-memory session storage and are never
 sent to the developer. Detection requires optional access to HTTPS sites because
 video pages commonly use a different CDN domain.
 
 For direct files, the extension streams the video through its hidden worker
-before handing Chrome a local file. It temporarily replays the detected
+before handing the browser a local file. It temporarily replays the detected
 request's `Referer`, `Origin`, `Accept`, and normalized `Range` headers only for
 that exact media URL, and only for the extension's own requests. When no
 `Referer` was captured, the page's own origin is used in its place. The session
@@ -53,7 +54,7 @@ on startup.
 node scripts/test-server.mjs
 ```
 
-The popup and manifest follow Chrome's browser UI language automatically.
+The popup and manifest follow the browser UI language automatically.
 English, Spanish, French, German, Brazilian Portuguese, Japanese, Korean,
 Simplified Chinese, and Traditional Chinese are included; other languages fall
 back to English.
@@ -69,7 +70,7 @@ back to English.
 See [PUBLISHING.md](PUBLISHING.md) for the release checklist and pricing plan,
 and [PRIVACY.md](PRIVACY.md) for the privacy policy.
 
-Chrome Web Store graphics are in [`store-assets`](store-assets).
+Chrome Web Store and Microsoft Edge Add-ons graphics are in [`store-assets`](store-assets).
 
 `vendor/mux-mp4.min.js` is mux.js 6.3.0, licensed under Apache-2.0. Its license
 is included at `vendor/mux.js-LICENSE.txt`.

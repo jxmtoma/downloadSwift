@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "Die Medienerkennung wurde nicht aktiviert." },
   "error_no_active_tab": { "message": "Kein aktiver Tab gefunden." },
   "error_start_hls": { "message": "Der HLS-Download konnte nicht gestartet werden." },
-  "error_chrome_interrupted": { "message": "Chrome hat den Download unterbrochen." },
-  "error_chrome_save": { "message": "Chrome konnte den Download nicht speichern." },
+  "error_chrome_interrupted": { "message": "Der Browser hat den Download unterbrochen." },
+  "error_chrome_save": { "message": "Der Browser konnte den Download nicht speichern." },
   "error_https_only": { "message": "Es werden nur HTTPS-Medien unterstützt." },
   "error_http_status": {
     "message": "Der Server hat HTTP $status$ zurückgegeben.",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "unbekannter Fehler" },
   "notification_ready": { "message": "Dein Video ist bereit." },
   "notification_complete": { "message": "Download abgeschlossen" },
+  "open_file": { "message": "Datei öffnen" },
+  "show_in_folder": { "message": "Im Ordner anzeigen" },
   "offscreen_justification": { "message": "Video herunterladen und vorbereiten, ohne einen Tab zu öffnen." }
 }

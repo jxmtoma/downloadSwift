@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "La détection des médias n'a pas été activée." },
   "error_no_active_tab": { "message": "Aucun onglet actif trouvé." },
   "error_start_hls": { "message": "Impossible de démarrer le téléchargement HLS." },
-  "error_chrome_interrupted": { "message": "Chrome a interrompu le téléchargement." },
-  "error_chrome_save": { "message": "Chrome n'a pas pu enregistrer le téléchargement." },
+  "error_chrome_interrupted": { "message": "Le navigateur a interrompu le téléchargement." },
+  "error_chrome_save": { "message": "Le navigateur n'a pas pu enregistrer le téléchargement." },
   "error_https_only": { "message": "Seuls les médias HTTPS sont pris en charge." },
   "error_http_status": {
     "message": "Le serveur a renvoyé HTTP $status$.",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "erreur inconnue" },
   "notification_ready": { "message": "Votre vidéo est prête." },
   "notification_complete": { "message": "Téléchargement terminé" },
+  "open_file": { "message": "Ouvrir le fichier" },
+  "show_in_folder": { "message": "Afficher dans le dossier" },
   "offscreen_justification": { "message": "Télécharger et préparer la vidéo sans ouvrir d'onglet." }
 }

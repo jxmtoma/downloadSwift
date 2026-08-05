@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "メディア検出が有効になりませんでした。" },
   "error_no_active_tab": { "message": "アクティブなタブが見つかりません。" },
   "error_start_hls": { "message": "HLS ダウンロードを開始できませんでした。" },
-  "error_chrome_interrupted": { "message": "Chrome がダウンロードを中断しました。" },
-  "error_chrome_save": { "message": "Chrome がダウンロードを保存できませんでした。" },
+  "error_chrome_interrupted": { "message": "ブラウザーがダウンロードを中断しました。" },
+  "error_chrome_save": { "message": "ブラウザーがダウンロードを保存できませんでした。" },
   "error_https_only": { "message": "HTTPS メディアのみ対応しています。" },
   "error_http_status": {
     "message": "サーバーから HTTP $status$ が返されました。",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "不明なエラー" },
   "notification_ready": { "message": "動画の準備ができました。" },
   "notification_complete": { "message": "ダウンロード完了" },
+  "open_file": { "message": "ファイルを開く" },
+  "show_in_folder": { "message": "フォルダに表示" },
   "offscreen_justification": { "message": "タブを開かずに動画をダウンロードして準備します。" }
 }

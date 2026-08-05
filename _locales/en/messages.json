@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "Media detection was not enabled." },
   "error_no_active_tab": { "message": "No active tab found." },
   "error_start_hls": { "message": "Could not start the HLS download." },
-  "error_chrome_interrupted": { "message": "Chrome interrupted the download." },
-  "error_chrome_save": { "message": "Chrome could not save the download." },
+  "error_chrome_interrupted": { "message": "The browser interrupted the download." },
+  "error_chrome_save": { "message": "The browser could not save the download." },
   "error_https_only": { "message": "Only HTTPS media is supported." },
   "error_http_status": {
     "message": "Server returned HTTP $status$.",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "unknown error" },
   "notification_ready": { "message": "Your video is ready." },
   "notification_complete": { "message": "Download complete" },
+  "open_file": { "message": "Open file" },
+  "show_in_folder": { "message": "Show in folder" },
   "offscreen_justification": { "message": "Download and prepare video without opening a tab." }
 }

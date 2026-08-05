@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "媒体检测未启用。" },
   "error_no_active_tab": { "message": "未找到活动标签页。" },
   "error_start_hls": { "message": "无法开始 HLS 下载。" },
-  "error_chrome_interrupted": { "message": "Chrome 中断了下载。" },
-  "error_chrome_save": { "message": "Chrome 无法保存下载内容。" },
+  "error_chrome_interrupted": { "message": "浏览器中断了下载。" },
+  "error_chrome_save": { "message": "浏览器无法保存下载内容。" },
   "error_https_only": { "message": "仅支持 HTTPS 媒体。" },
   "error_http_status": {
     "message": "服务器返回了 HTTP $status$。",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "未知错误" },
   "notification_ready": { "message": "您的视频已准备就绪。" },
   "notification_complete": { "message": "下载完成" },
+  "open_file": { "message": "打开文件" },
+  "show_in_folder": { "message": "在文件夹中显示" },
   "offscreen_justification": { "message": "无需打开标签页即可下载并准备视频。" }
 }

@@ -1,5 +1,5 @@
 import { downloadFilename } from "./media.mjs";
-import { localizeDocument, t } from "./i18n.mjs";
+import { formatTimeUntil, localizeDocument, t } from "./i18n.mjs";
 
 localizeDocument();
 
@@ -245,7 +245,9 @@ function renderItems(items, jobs = []) {
       jobStatus.className = `job-status ${job.state}`;
 
       const jobLabel = document.createElement("span");
-      jobLabel.textContent = job.status;
+      jobLabel.textContent = [job.status, formatTimeUntil(job.estimatedEndTime)]
+        .filter(Boolean)
+        .join(" ");
 
       const jobProgress = document.createElement("span");
       jobProgress.className = "job-progress";
@@ -276,6 +278,7 @@ async function addNativeProgress(jobs) {
     const progress = start + Math.round((download.bytesReceived / download.totalBytes) * (100 - start));
     return {
       ...job,
+      estimatedEndTime: download.estimatedEndTime,
       progress,
       status: t("status_downloading_bytes", [
         formatBytes(download.bytesReceived),

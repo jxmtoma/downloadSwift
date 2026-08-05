@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "No se activó la detección de contenido." },
   "error_no_active_tab": { "message": "No se encontró una pestaña activa." },
   "error_start_hls": { "message": "No se pudo iniciar la descarga HLS." },
-  "error_chrome_interrupted": { "message": "Chrome interrumpió la descarga." },
-  "error_chrome_save": { "message": "Chrome no pudo guardar la descarga." },
+  "error_chrome_interrupted": { "message": "El navegador interrumpió la descarga." },
+  "error_chrome_save": { "message": "El navegador no pudo guardar la descarga." },
   "error_https_only": { "message": "Solo se admite contenido multimedia mediante HTTPS." },
   "error_http_status": {
     "message": "El servidor devolvió HTTP $status$.",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "error desconocido" },
   "notification_ready": { "message": "Tu video está listo." },
   "notification_complete": { "message": "Descarga completada" },
+  "open_file": { "message": "Abrir archivo" },
+  "show_in_folder": { "message": "Mostrar en carpeta" },
   "offscreen_justification": { "message": "Descargar y preparar el video sin abrir una pestaña." }
 }

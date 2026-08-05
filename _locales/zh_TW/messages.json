@@ -88,8 +88,8 @@
   "error_detection_not_enabled": { "message": "媒體偵測未啟用。" },
   "error_no_active_tab": { "message": "找不到使用中的分頁。" },
   "error_start_hls": { "message": "無法開始 HLS 下載。" },
-  "error_chrome_interrupted": { "message": "Chrome 中斷了下載。" },
-  "error_chrome_save": { "message": "Chrome 無法儲存下載內容。" },
+  "error_chrome_interrupted": { "message": "瀏覽器中斷了下載。" },
+  "error_chrome_save": { "message": "瀏覽器無法儲存下載內容。" },
   "error_https_only": { "message": "僅支援 HTTPS 媒體。" },
   "error_http_status": {
     "message": "伺服器傳回 HTTP $status$。",
@@ -105,5 +105,7 @@
   "unknown_error": { "message": "未知錯誤" },
   "notification_ready": { "message": "您的影片已準備完成。" },
   "notification_complete": { "message": "下載完成" },
+  "open_file": { "message": "開啟檔案" },
+  "show_in_folder": { "message": "在資料夾中顯示" },
   "offscreen_justification": { "message": "不開啟分頁即可下載並準備影片。" }
 }

@@ -22,6 +22,8 @@ assert.deepEqual(localeDirectories, [
 ]);
 assert.equal(manifest.default_locale, "en");
 assert.deepEqual(manifest.optional_host_permissions, ["https://*/*"]);
+assert.ok(manifest.permissions.includes("downloads.open"));
+assert.equal(manifest.update_url, undefined, "Store packages must not pin a browser-specific updater");
 
 for (const [locale, messages] of Object.entries(locales)) {
   assert.deepEqual(Object.keys(messages).sort(), englishKeys, `${locale} has missing or extra messages`);
@@ -35,6 +37,11 @@ for (const [locale, messages] of Object.entries(locales)) {
       `${locale}.${key} placeholders do not match`
     );
   }
+  assert.doesNotMatch(
+    `${messages.extension_name.message} ${messages.extension_description.message}`,
+    /\bchrome\b/i,
+    `${locale} store name and description must work in Chrome and Edge`
+  );
 }
 
 const sourceFiles = [
@@ -75,7 +82,7 @@ globalThis.chrome = {
     )
   }
 };
-const { localizeDocument, t } = await import("./i18n.mjs");
+const { formatTimeUntil, localizeDocument, t } = await import("./i18n.mjs");
 localizeDocument({
   documentElement,
   querySelectorAll: (selector) => (
@@ -91,5 +98,7 @@ assert.equal(documentElement.lang, "pt-BR");
 assert.deepEqual(localized, ["translated:download"]);
 assert.deepEqual(ariaLocalized, [["aria-label", "translated:media_views"]]);
 assert.equal(t("status_downloading_percent", "42"), "status_downloading_percent:42");
+assert.match(formatTimeUntil("2026-01-01T00:01:30Z", Date.parse("2026-01-01T00:00:00Z")), /2/);
+assert.equal(formatTimeUntil("2026-01-01T00:00:00Z", Date.parse("2026-01-01T00:00:01Z")), "");
 
 console.log("presubmit policy and localization check passed");

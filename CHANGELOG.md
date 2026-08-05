@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 — 2026-08-04
+
+- Show an estimated completion time alongside active download progress.
+- Add **Open file** and **Show in folder** actions to completion notifications.
+- Support the same Manifest V3 package in Microsoft Edge.
+
 ## 0.3.1 — 2026-08-02
 
 - Keep one entry per stream rather than one per tab, so a page that embeds
