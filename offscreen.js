@@ -239,19 +239,25 @@ async function cleanup(jobId) {
 // or Safari's handoff (which has no completion event to clean up on), can leave
 // one behind. Anything not claimed by a job running in this context is stale.
 export async function sweepTempFiles() {
-  // A job parked for the user to save it owns its file across restarts, and that
-  // is the whole point of parking, so it is not a leftover no matter how long it
-  // has been sitting there.
+  // A job owns its file for as long as the job still exists, whatever state it
+  // reached. "ready" alone is not enough: Safari's save is an anchor click, and
+  // it reads the blob asynchronously with no event to say it is finished. The
+  // popup marks the job complete the moment it clicks, so a sweep in the gap
+  // deleted the file out from under a save that was still running and wrote a
+  // zero-byte "unknown.mp4". The job row naming the file is the only ownership
+  // signal that outlives both this page and the handoff.
+  // ponytail: a completed job holds its temp copy until it is cleared or the
+  // session ends; expire on updatedAt if the disk cost ever bites.
   const stored = await api.storage.session.get(null).catch(() => ({}));
-  const parked = new Set(Object.entries(stored)
-    .filter(([key, job]) => key.startsWith("download-job:") && job?.state === "ready")
-    .map(([, job]) => job.tempName)
+  const claimed = new Set(Object.entries(stored)
+    .filter(([key]) => key.startsWith("download-job:"))
+    .map(([, job]) => job?.tempName)
     .filter(Boolean));
 
   const root = await navigator.storage.getDirectory();
   for await (const name of root.keys()) {
     if (!name.startsWith(TEMP_PREFIX)) continue;
-    if (liveTempNames.has(name) || parked.has(name)) continue;
+    if (liveTempNames.has(name) || claimed.has(name)) continue;
     await root.removeEntry(name).catch(() => {});
   }
 }
@@ -287,21 +293,6 @@ async function offerDownload(job, handle, tempName, filename) {
     url
   });
   if (!accepted?.ok) throw new Error(accepted?.error || t("error_chrome_save"));
-}
-
-// Safari saves from the popup, but the popup reading the file out of storage
-// itself handed back a zero-byte blob, and so a zero-byte save, even though this
-// page had already checked that very file was not empty. So the page that wrote
-// the file is the one that reads it, and passes over a URL instead.
-async function prepareSave(jobId, tempName) {
-  const root = await navigator.storage.getDirectory();
-  const handle = await root.getFileHandle(tempName);
-  const file = await handle.getFile();
-  if (!file.size) throw new Error(t("error_empty_output"));
-
-  const url = URL.createObjectURL(asVideoBlob(file));
-  activeFiles.set(jobId, { tempName, url });
-  return { ok: true, size: file.size, url };
 }
 
 async function runHlsJob(job) {
@@ -604,10 +595,6 @@ export function handleOffscreenMessage(message, waitForCompletion = false) {
   if (message.type === "cancel") {
     controllers.get(message.jobId)?.abort();
     return { ok: true };
-  }
-
-  if (message.type === "prepare-save") {
-    return prepareSave(message.jobId, message.tempName);
   }
 
   return { error: "Unknown offscreen message", ok: false };

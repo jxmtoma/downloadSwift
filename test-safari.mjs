@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 
 // Safari, like Firefox, rejects a rule whose condition carries an undefined
 // property. Chrome-only conditions such as tabIds must never reach it.
@@ -170,34 +171,29 @@ assert.ok(
   "only the capability probe may attempt a positioned write here"
 );
 
-// The save goes through the page that wrote the file. Reading it from the popup
-// instead handed back a zero-byte blob, and Safari saved zero bytes, even though
-// this side had already checked the same file was not empty.
-fileChunks.length = 0;
-fileChunks.push(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]));
-const savePrepared = await new Promise((resolve) => {
+// Nothing hands out a blob URL made by the background page any more. That URL
+// died when Safari unloaded the page — within a couple of minutes — so the tab
+// it opened played and then froze, and saving from it wrote no bytes. The save
+// page reads the file itself, in a tab that outlives both the popover and the
+// background page.
+const goneRoute = await new Promise((resolve) => {
   runtimeListeners[0]({
     jobId: job.id,
     target: "service-worker",
     type: "prepare-save"
   }, null, resolve);
 });
-assert.equal(savePrepared.ok, true);
-assert.equal(savePrepared.size, 8, "the size comes from the file, not from a guess");
-assert.match(savePrepared.url, /^blob:/, "the popup is handed a URL, not asked to read storage");
+assert.equal(goneRoute.ok, false, "the background page must not hand out a URL to save from");
 
-// An empty file is refused here rather than saved as zero bytes.
-fileChunks.length = 0;
-const emptyPrepared = await new Promise((resolve) => {
-  runtimeListeners[0]({
-    jobId: job.id,
-    target: "service-worker",
-    type: "prepare-save"
-  }, null, resolve);
-});
-assert.equal(emptyPrepared.ok, false);
-assert.match(emptyPrepared.error, /error_empty_output/);
-fileChunks.push(new Uint8Array([1, 2, 3, 4]));
+const savePage = fs.readFileSync("save.js", "utf8");
+assert.match(savePage, /navigator\.storage\.getDirectory/, "the save page reads the file itself");
+assert.match(savePage, /URL\.createObjectURL/, "and owns the blob it gives the download");
+assert.doesNotMatch(savePage, /prepare-save/, "with no round trip to a page that may be gone");
+assert.match(
+  fs.readFileSync("popup.js", "utf8"),
+  /tabs\.create\([^)]*save\.html/s,
+  "the popup opens the save tab rather than clicking a link Safari ignores"
+);
 
 // The prepared file is handed on as video/mp4. A file read back out of storage
 // has no type of its own, and a typeless blob URL is what left Safari showing an
@@ -225,6 +221,39 @@ directoryEntries.push(`downloadswift-${job.id}.mp4`, "downloadswift-orphan.mp4")
 await restarted.sweepTempFiles();
 assert.deepEqual(removedFiles, ["downloadswift-orphan.mp4"]);
 removedFiles.length = 0;
+
+// Saving marks the job complete straight after the anchor click, but Safari
+// reads the blob on its own schedule and reports nothing when it is done. A
+// sweep in that gap used to delete the file mid-save, and Safari wrote a
+// zero-byte "unknown.mp4". A saved job keeps its file until the job is cleared.
+const savedJob = stored[`download-job:${job.id}`];
+stored[`download-job:${job.id}`] = {
+  ...savedJob,
+  state: "complete",
+  status: "status_handed_to_browser"
+};
+directoryEntries.length = 0;
+directoryEntries.push(`downloadswift-${job.id}.mp4`, "downloadswift-orphan.mp4");
+await restarted.sweepTempFiles();
+assert.deepEqual(
+  removedFiles,
+  ["downloadswift-orphan.mp4"],
+  "a saved job's file must outlive the click Safari is still reading"
+);
+removedFiles.length = 0;
+
+// Once the job itself is gone, nothing claims the file and it is a leftover.
+delete stored[`download-job:${job.id}`];
+directoryEntries.length = 0;
+directoryEntries.push(`downloadswift-${job.id}.mp4`);
+await restarted.sweepTempFiles();
+assert.deepEqual(
+  removedFiles,
+  [`downloadswift-${job.id}.mp4`],
+  "clearing the job releases its file"
+);
+removedFiles.length = 0;
+stored[`download-job:${job.id}`] = savedJob;
 
 sessionRules.push({ id: 7 });
 stored["download-job:safari-hls"] = {

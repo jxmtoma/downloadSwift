@@ -620,13 +620,6 @@ export async function handleServiceWorkerMessage(message) {
     return { ok: true };
   }
 
-  if (message.type === "prepare-save") {
-    const stored = await api.storage.session.get(jobKey(message.jobId));
-    const job = stored[jobKey(message.jobId)];
-    if (!job?.tempName) return { error: t("error_empty_output"), ok: false };
-    return sendToOffscreen({ jobId: message.jobId, tempName: job.tempName, type: "prepare-save" });
-  }
-
   if (message.type === "arm-preview") {
     return armPreview(message.item, message.hosts);
   }

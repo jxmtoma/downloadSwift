@@ -60,10 +60,14 @@ current stable Edge release for macOS, Windows, and Linux.
 
 ## Apple App Store (Safari)
 
-**Do not submit the Safari build yet.** Saving a finished file does not work:
-Safari ignores the download attribute, and the file handed to the popup reads as
-empty although the page that wrote it sees it complete. Everything below stands
-once that is fixed.
+**Do not submit the Safari build yet.** The zero-byte save had two causes, both
+now fixed: the sweep deleted the temporary file while Safari was still reading it,
+and the save itself ran against a blob owned by the background page, which Safari
+unloads. Saving now happens in its own tab. A synthetic save was verified byte-for-byte
+on Safari 26.5.2, but a full real-world run (detect ▸ download ▸ save on a live
+stream) has not been repeated since the change. See the Safari section of
+[BROWSER-COMPAT.md](BROWSER-COMPAT.md). Clear this block once a real download
+saves a non-zero, playable file.
 
 The first Safari release is macOS-only and requires Safari 26 or later. Do not
 select iOS, iPadOS, or visionOS for this build: Safari exposes the request
@@ -80,10 +84,13 @@ inspection needed here only on macOS, and the current save handoff is desktop-on
    access, HTTP rejection, Safari's file handoff, and all nine languages.
 
 Safari removes temporary extensions after 24 hours or when Safari quits. Safari
-exposes no WebExtension downloads or notifications API and does not honour a
-download attribute clicked from a background page, so a finished job waits with a
-**Save** button and is saved from the popup, where the click is a real user
-gesture. Safari 26 is the minimum: every download writes its result through
+exposes no WebExtension downloads or notifications API and honours a download
+attribute only in an ordinary tab — from the background page it does nothing, and
+from the popover it navigates instead of saving. So a finished job waits with a
+**Save** button that opens the save tab, and the download happens there. Expect
+Safari to ask "Do you want to allow downloads on <uuid>?" the first time: the
+extension's UUID changes on every reload, so testers see this prompt after every
+rebuild. Safari 26 is the minimum: every download writes its result through
 `FileSystemFileHandle.createWritable`, which earlier releases lack, and without
 it the saved file is zero bytes. Whether Safari's own save was accepted or
 dismissed is not observable, so there is no completion notification or

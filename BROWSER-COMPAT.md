@@ -74,21 +74,52 @@ Ordered by how long it took to find, not by severity.
 - **No downloads API and no notifications API at all.** The manifest omits both
   permissions rather than requesting what Safari can't honour. Completion is
   reported by pointing the user at Safari's own Downloads list.
-- **A `download` attribute clicked from a background page is ignored.** Silently —
-  the file was built and then never saved. Finished jobs now park with a **Save**
-  button and are saved from the popup, where the click is a real user gesture
-  ([`popup.js:152`](popup.js:152)).
+- **A `download` attribute is ignored outside an ordinary tab.** Clicked from the
+  background page it does nothing at all; clicked from the popover it becomes a
+  *navigation*, so Safari opened the blob in a tab and played it instead of saving
+  it. Neither context can save. Finished jobs park with a **Save** button that
+  opens [`save.html`](save.html) in a real tab, and the download happens there
+  ([`popup.js:152`](popup.js:152)). From a tab the attribute is honoured and the
+  filename sticks.
+- **A blob URL dies with the document that made it, and Safari kills that document
+  fast.** The background page handed the popup a URL; Safari unloads that page
+  within a couple of minutes, after which the tab playing it froze mid-video and
+  saving wrote nothing. The popover is worse — it is destroyed the moment focus
+  leaves it. Only a tab lives long enough, so [`save.js`](save.js) opens the file
+  out of OPFS and makes its own blob.
 - **The popup reading the file back gave a zero-byte blob** while the page that
-  wrote it saw the full bytes. The writing page now reads it and hands the popup a
-  URL ([`offscreen.js:292`](offscreen.js:292)). This one burned the most time.
-- **A file read out of OPFS carries no MIME type**, and a typeless blob URL made
-  Safari show an empty player. `file.slice(0, file.size, "video/mp4")` re-labels
-  it without copying bytes.
+  wrote it saw the full bytes. That is what pushed the blob into the background
+  page in the first place. Re-checked on 26.5.2 and it no longer reproduces: a
+  second document reads the full bytes straight out of OPFS, which is what makes
+  the save page possible.
+- **The sweep deleted the file out from under a save that was still running.**
+  Safari's save is an anchor click it services on its own schedule, with no event
+  to say it finished. The popup marks the job `complete` the instant it clicks, and
+  `sweepTempFiles` only treated a `ready` job as owning its file, so any background
+  page load in that gap swept the file mid-save and Safari wrote a zero-byte
+  `unknown.mp4` — "unknown" because with the bytes gone it cannot apply the
+  download attribute's name either. A job now owns its file for as long as the job
+  row exists ([`offscreen.js:241`](offscreen.js:241)). A 45-second gap between the
+  click and the file appearing on disk is normal, so the window is wide.
+- **A file read out of OPFS carries the wrong MIME type**, and a bad blob URL type
+  made Safari show an empty player. `file.slice(0, file.size, "video/mp4")` re-labels
+  it without copying bytes. On 26.5.2 the file comes back as `application/macbinary`
+  rather than typeless, so the re-label matters more, not less.
+- **Downloads need per-site permission, and the extension's "site" is its UUID.**
+  Safari's default is **Ask**, so the first save shows "Do you want to allow
+  downloads on <uuid>?" and nothing reaches disk until it is answered. The UUID is
+  regenerated every time the extension is reloaded or reinstalled, so the grant
+  does not survive an update — expect the prompt again after every release, and do
+  not treat a silent no-op as a bug before checking Settings ▸ Websites ▸ Downloads.
 - **Safari 26 is the floor.** Below it `createWritable` writes are accepted and
   nothing is kept — a silent zero-byte file, not an error.
-- **Host access is granted one site at a time.** The blanket HTTPS pattern never
-  read back as granted, so detection couldn't be switched on at all. Ask for
-  access to the active tab's site.
+- **Host access used to be granted one site at a time.** The blanket HTTPS pattern
+  never read back as granted, so detection couldn't be switched on at all, and the
+  code asks for access to the active tab's site. On 26.5.2 the blanket pattern does
+  read back: `permissions.getAll()` in the background page returns
+  `origins: ["https://*/*"]`. Per-site asking still works and is still the safer
+  request, so it was left alone — but do not use "the blanket pattern is impossible"
+  to justify anything new.
 
 ### All three
 
@@ -105,11 +136,31 @@ Ordered by how long it took to find, not by severity.
 
 ## Open on Safari
 
-[PUBLISHING.md](PUBLISHING.md) still carries a **"Do not submit the Safari build
-yet"** block describing the zero-byte save. The 0.4.0 changelog and
-[`test-safari.mjs`](test-safari.mjs) say that specific bug is fixed. Confirm
-against a real Safari 26 build, then either clear that block or replace it with
-whatever is actually still failing.
+Checked against a real Safari 26.5.2 build on 2026-08-08. Two separate faults were
+breaking the save, and fixing only the first left it still broken:
+
+1. **The sweep deleted the file mid-save.** Evidence was two files in `~/Downloads`
+   from the same extension — a 333 MB video that saved correctly, and a 0-byte
+   `unknown.mp4` written 45 seconds after its job was marked complete. Fixed by
+   making a job own its file for as long as the job row exists. Proof it worked: a
+   362 MB temp file then survived a completed job and several background-page
+   unloads.
+2. **The handoff itself.** With the bytes surviving, the save still failed — the
+   blob belonged to the background page, so the tab Safari opened played for two
+   minutes and froze, and saving out of it produced page source. Fixed by moving
+   the save into [`save.html`](save.html).
+
+Verified end to end on 2026-08-08: clicking **Save** opened the save tab, and the
+download landed as `save-test.mp4` at exactly the 1,048,576 bytes written to OPFS,
+byte-for-byte, under the job's own filename. What has *not* been re-run since the
+change is a full real-world download (detect ▸ download ▸ save) on a live stream;
+[PUBLISHING.md](PUBLISHING.md) keeps its **"Do not submit"** block until it has.
+
+Before touching the save path again: `showSaveFilePicker` does not exist in 26.5.2,
+so an anchor click on a blob URL is the only way out; a blob URL dies with the
+document that made it; and the Develop menu shows the background page as
+"(not loaded)" most of the time, which is exactly why nothing durable can live
+there.
 
 ## Checking a change
 
