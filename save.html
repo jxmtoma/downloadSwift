@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title data-i18n="extension_name">Video &amp; Media Downloader</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        display: grid;
+        font: 15px/1.5 -apple-system, system-ui, sans-serif;
+        gap: 16px;
+        justify-items: center;
+        margin: 0 auto;
+        max-width: 900px;
+        padding: 32px 20px;
+      }
+      video {
+        background: #000;
+        border-radius: 10px;
+        max-height: 60vh;
+        width: 100%;
+      }
+      p { margin: 0; text-align: center; }
+      #save {
+        background: #0a68ff;
+        border-radius: 8px;
+        color: #fff;
+        display: inline-block;
+        font-weight: 600;
+        padding: 10px 22px;
+        text-decoration: none;
+      }
+      #save[hidden], video[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <p id="status" data-i18n="status_ready_to_save"></p>
+    <video id="preview" controls playsinline hidden></video>
+    <a id="save" data-i18n="save" hidden></a>
+    <script type="module" src="save.js"></script>
+  </body>
+</html>

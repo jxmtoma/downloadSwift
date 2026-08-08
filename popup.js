@@ -149,34 +149,15 @@ async function startDownload(item, pageTitle = currentTabTitle) {
   });
 }
 
-// Safari refuses a download attribute clicked from a background page, so the
-// save runs here instead, on the user's own click. The bytes are read straight
-// out of storage rather than from a blob URL the background page made, because
-// that page can be unloaded long before the user gets round to clicking.
+// Safari has no downloads API, and a download attribute clicked from here is
+// ignored: the click became a navigation onto a blob the background page owned,
+// so the tab played for a couple of minutes and froze the moment Safari unloaded
+// that page, and saving from it produced page source or an empty file. The save
+// runs in a real tab instead, which outlives this popover and that page and
+// reads the file for itself.
 async function saveReadyJob(job) {
-  // The background page reads the file and hands back a URL. Reading it here
-  // instead gave a zero-byte blob, and a zero-byte save, even though that page
-  // had already checked the very same file was not empty.
-  const prepared = await api.runtime.sendMessage({
-    jobId: job.id,
-    target: "service-worker",
-    type: "prepare-save"
-  });
-  if (!prepared?.url) throw new Error(prepared?.error || t("error_empty_output"));
-
-  const link = document.createElement("a");
-  link.download = job.filename || "video.mp4";
-  link.href = prepared.url;
-  link.hidden = true;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  await api.storage.session.set({
-    [`download-job:${job.id}`]: {
-      ...job,
-      state: "complete",
-      status: t("status_handed_to_browser")
-    }
+  await api.tabs.create({
+    url: api.runtime.getURL(`save.html?job=${encodeURIComponent(job.id)}`)
   });
 }
 

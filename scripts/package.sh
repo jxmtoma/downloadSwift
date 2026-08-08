@@ -7,7 +7,7 @@ archive="dist/downloadswift-${version}.zip"
 
 # One list for every package. Two hand-synced lists is how a browser build ends
 # up silently missing a module that only that browser loads.
-shared_files="icon.svg service-worker.mjs popup.html popup.css popup.js offscreen.js media.mjs hls.mjs dash.mjs mp4.mjs preview.mjs sites.mjs resolve.mjs i18n.mjs"
+shared_files="icon.svg service-worker.mjs popup.html popup.css popup.js save.html save.js offscreen.js media.mjs hls.mjs dash.mjs mp4.mjs preview.mjs sites.mjs resolve.mjs i18n.mjs"
 shared_dirs="_locales icons vendor"
 
 mkdir -p dist

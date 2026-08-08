@@ -77,6 +77,8 @@ const sourceFiles = [
   "popup.js",
   "preview.mjs",
   "resolve.mjs",
+  "save.html",
+  "save.js",
   "service-worker.mjs",
   "sites.mjs"
 ];
