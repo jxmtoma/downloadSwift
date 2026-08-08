@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Separate steps so a failure names itself in the run summary.
+      - run: node test-media.mjs
+      - run: node test-hls.mjs
+      - run: node test-dash.mjs
+      - run: node test-mp4.mjs
+      - run: node test-sites.mjs
+      - run: node test-preview.mjs
+      - run: node test-remux.mjs
+      - run: node test-download-flow.mjs
+      - run: node test-firefox.mjs
+      - run: node test-safari.mjs
+      - run: node test-presubmit.mjs
+
+      - name: Build store packages
+        run: sh scripts/package.sh
+      - name: Lint the Firefox package
+        run: npx --yes web-ext@10 lint --source-dir dist/firefox
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: dist/*.zip
+          retention-days: 14

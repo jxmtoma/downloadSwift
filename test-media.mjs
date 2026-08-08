@@ -65,4 +65,37 @@ assert.equal(detectMedia({
   url: "https://rr1.googlevideo.com/videoplayback"
 }), null);
 
+// Ad beacons and player stubs ship as video/mp4 at a few KB. A real video that
+// happens to be fetched by range must survive: its total is on content-range.
+const sized = (value, name = "content-length") => [
+  { name: "content-type", value: "video/mp4" },
+  { name, value }
+];
+assert.equal(detectMedia({ responseHeaders: sized("3584"), url: "https://ads.example/a.mp4" }), null);
+assert.equal(detectMedia({
+  responseHeaders: sized("bytes 0-1023/94371840", "content-range"),
+  url: "https://cdn.example/video.mp4"
+}).size, 94371840, "a ranged response reports the whole file, not the slice");
+assert.equal(detectMedia({
+  responseHeaders: sized("52428800"),
+  url: "https://cdn.example/video.mp4"
+}).size, 52428800);
+// An unsized response still gets the benefit of the doubt.
+assert.equal(detectMedia({
+  responseHeaders: [{ name: "content-type", value: "video/mp4" }],
+  url: "https://cdn.example/play/8fj2"
+}).kind, "file");
+// A playlist is small by nature and must not be caught by the file floor. Its
+// content-length is the manifest's own size, which says nothing about the video,
+// so it must not be reported as one: a two-hour stream looked like 29 KB.
+const playlist = detectMedia({
+  responseHeaders: [
+    { name: "content-type", value: "application/vnd.apple.mpegurl" },
+    { name: "content-length", value: "29798" }
+  ],
+  url: "https://cdn.example/master.m3u8"
+});
+assert.equal(playlist.format, "HLS");
+assert.equal(playlist.size, null, "a manifest's own length is not the video's size");
+
 console.log("media detection check passed");

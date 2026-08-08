@@ -1,5 +1,5 @@
 export function t(key, substitutions) {
-  return globalThis.chrome?.i18n?.getMessage(key, substitutions) || key;
+  return (globalThis.browser ?? globalThis.chrome)?.i18n?.getMessage(key, substitutions) || key;
 }
 
 export function formatTimeUntil(estimatedEndTime, now = Date.now()) {

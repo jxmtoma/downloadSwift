@@ -314,7 +314,7 @@ ul {
   border-radius: 13px;
   display: grid;
   gap: 10px;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: 80px minmax(0, 1fr) auto;
   margin-bottom: 8px;
   padding: 11px;
   transition: border-color 120ms ease, box-shadow 120ms ease;
@@ -327,22 +327,42 @@ ul {
 
 .format-tile {
   align-items: center;
-  align-self: stretch;
+  align-self: center;
+  /* Every tile is the shape a frame will be, so a row with a preview and a row
+     without line up instead of one stretching to the full row height. */
+  aspect-ratio: 16 / 9;
   background: #eef2ff;
   border-radius: 10px;
   color: #4338ca;
   display: flex;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 850;
   justify-content: center;
   letter-spacing: 0.03em;
-  min-height: 44px;
   overflow: hidden;
+  width: 100%;
 }
 
 .format-tile.file {
   background: #ecfdf5;
   color: #047857;
+}
+
+/* A frame from the media itself, which is the fastest way to tell a real video
+   from an ad stub that shares its mime type. Held at 16:9 and stretched to the
+   column: a square box cropped most of the frame away. */
+.format-tile.has-preview {
+  background: #0f172a;
+  padding: 0;
+}
+
+.format-tile.has-preview img {
+  display: block;
+  height: 100%;
+  /* contain, not cover: a 4:3 or vertical clip keeps its whole frame rather
+     than having the sides or the top and bottom cut off. */
+  object-fit: contain;
+  width: 100%;
 }
 
 .media-details {
@@ -529,6 +549,10 @@ ul {
   .format-tile.file {
     background: #064e3b;
     color: #a7f3d0;
+  }
+
+  .format-tile.has-preview {
+    background: #0f172a;
   }
 
   .notice {

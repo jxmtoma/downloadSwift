@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Privacy Policy — Video &amp; Media Downloader</title>
-    <meta name="description" content="Privacy policy for the Video &amp; Media Downloader extension for Chrome and Microsoft Edge.">
+    <meta name="description" content="Privacy policy for the Video &amp; Media Downloader extension for Chrome, Microsoft Edge, Firefox, and Safari.">
     <link rel="canonical" href="https://jxmtoma.github.io/downloadSwift/privacy/">
     <link rel="stylesheet" href="../styles.css">
   </head>
@@ -23,8 +23,8 @@
       <p>Video &amp; Media Downloader has one purpose: detect media requested by a page the user chooses and save user-selected media to the user's device.</p>
 
       <h2>Data handled on the device</h2>
-      <p>The extension processes HTTPS media URLs, page titles, download status, and limited request metadata (<code>Accept</code>, <code>Origin</code>, <code>Range</code>, and <code>Referer</code>). Chrome or Microsoft Edge may send the user's existing cookies directly back to the same HTTPS media host when fetching a selected file. The extension does not read, store, or transmit cookie values to the developer.</p>
-      <p>Detected media and download history are kept in the browser's session storage. Temporary media files are kept in browser-managed local storage only while a download is being prepared, then deleted after completion, cancellation, or failure.</p>
+      <p>The extension processes HTTPS media URLs, page titles, download status, and limited request metadata (<code>Accept</code>, <code>Origin</code>, <code>Range</code>, and <code>Referer</code>). The browser may send the user's existing cookies directly back to the same HTTPS media host when fetching a selected file. The extension does not read, store, or transmit cookie values to the developer.</p>
+      <p>Detected media and download history are kept in the browser's session storage. Temporary media files are kept in browser-managed local storage only while a download is being prepared, then deleted after completion, cancellation, or failure. In Safari, which cannot report when its save flow has finished reading a prepared file, that file is instead deleted when the extension next starts.</p>
 
       <h2>No developer collection</h2>
       <p>The extension has no analytics, advertising, tracking, or developer-operated backend. The developer does not receive, sell, share, or use browsing activity, media URLs, page titles, request metadata, downloaded files, or payment data. Media requests go only to the website or media host selected by the user.</p>
@@ -33,10 +33,10 @@
       <ul>
         <li><strong>Site access and webRequest:</strong> detect media requests on sites the user enables.</li>
         <li><strong>declarativeNetRequest:</strong> replay only the request context needed for a user-selected media URL.</li>
-        <li><strong>downloads, downloads.open, and downloads.ui:</strong> save the prepared file and perform only the open or show action selected by the user.</li>
-        <li><strong>offscreen:</strong> prepare direct and HLS downloads without opening another tab.</li>
+        <li><strong>downloads and downloads.open:</strong> save the prepared file and perform only the open or show action selected by the user in Chrome, Edge, and Firefox. Chrome and Edge also use <code>downloads.ui</code> to suppress duplicate browser download UI during the managed handoff. Safari requests none of these permissions and hands the prepared file to its native save flow.</li>
+        <li><strong>offscreen:</strong> prepare direct and HLS downloads without opening another tab in Chrome and Edge. Firefox and Safari perform the same work in a background page.</li>
         <li><strong>storage:</strong> keep detected items and download state for the browser session.</li>
-        <li><strong>notifications:</strong> tell the user when a download finishes.</li>
+        <li><strong>notifications:</strong> tell the user when a download finishes in Chrome, Edge, and Firefox. Safari does not request this permission.</li>
       </ul>
 
       <h2>User choices</h2>
@@ -47,7 +47,7 @@
 
       <h2>Contact</h2>
       <p>For privacy questions, email <a href="mailto:ylrbei.studio@gmail.com">ylrbei.studio@gmail.com</a>.</p>
-      <p>Use of information received from browser APIs adheres to the applicable Chrome Web Store and Microsoft Edge Add-ons user-data policies.</p>
+      <p>Use of information received from browser APIs adheres to the applicable Chrome Web Store, Microsoft Edge Add-ons, Mozilla Add-on, and Apple App Store policies.</p>
     </main>
 
     <footer>

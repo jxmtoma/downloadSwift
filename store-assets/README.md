@@ -11,3 +11,7 @@ Add-ons. Reuse the same files for both listings.
 
 The screenshots use the real popup markup and stylesheet with fictional example
 media. Regenerate them from `screenshot.html` after material UI changes.
+
+Firefox reuses the 1280×800 screenshots and the 32px/64px manifest icons.
+Safari reuses the screenshots and references `icon.svg` as its 512px extension
+icon; Apple's packager renders the macOS app icon from that scalable source.
