@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <script src="vendor/mux-mp4.min.js"></script>
+    <!-- Detection is loaded on its own first, so that a failure anywhere in the
+         preparation half cannot stop media from being detected. They were one
+         module graph, and one bad import took the whole extension down. -->
+    <script type="module" src="service-worker.mjs"></script>
+    <script type="module" src="background.mjs"></script>
+  </head>
+</html>

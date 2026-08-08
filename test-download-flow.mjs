@@ -15,6 +15,10 @@ const shownDownloads = [];
 const uiStates = [];
 let options;
 
+// Chrome defines a `browser` alias of its own now, so its presence says nothing
+// about which background context this is. Mirroring that here keeps the worker
+// on the offscreen path: taking the background-page path instead reaches a
+// dynamic import, which a service worker is forbidden to make.
 globalThis.chrome = {
   action: { setBadgeText: async () => {} },
   declarativeNetRequest: {
@@ -85,6 +89,7 @@ chrome.permissions = {
   onRemoved: { addListener: (listener) => permissionListeners.push(listener) }
 };
 
+globalThis.browser = globalThis.chrome;
 await import("./service-worker.mjs");
 
 // Granting or revoking host access must rebind the webRequest listeners, since
@@ -349,22 +354,53 @@ const prepared = new Promise((resolve) => {
   resolvePrepared = resolve;
 });
 const fileChunks = [];
+// Keyed by name and honouring a position, the way storage that supports the
+// positioned write behaves. The capability probe writes its own scratch file, so
+// a single shared buffer would mix the probe's bytes into the download's.
+const filesByName = new Map();
+const bytesFor = (name) => {
+  if (!filesByName.has(name)) filesByName.set(name, { bytes: new Uint8Array(0), cursor: 0 });
+  return filesByName.get(name);
+};
+const writeInto = (file, data, position) => {
+  const end = position + data.length;
+  if (end > file.bytes.length) {
+    const grown = new Uint8Array(end);
+    grown.set(file.bytes);
+    file.bytes = grown;
+  }
+  file.bytes.set(data, position);
+  file.cursor = Math.max(file.cursor, end);
+};
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   value: {
     storage: {
       getDirectory: async () => ({
-        getFileHandle: async () => ({
-          createWritable: async () => ({
-            abort: async () => {},
-            close: async () => {},
-            write: async (chunk) => fileChunks.push(chunk)
-          }),
+        getFileHandle: async (name) => ({
+          createWritable: async () => {
+            const file = bytesFor(name);
+            file.bytes = new Uint8Array(0);
+            file.cursor = 0;
+            return {
+              abort: async () => {},
+              close: async () => {},
+              write: async (chunk) => {
+                const positioned = Boolean(chunk && chunk.type === "write");
+                const data = new Uint8Array(positioned ? chunk.data : chunk);
+                writeInto(file, data, positioned ? chunk.position : file.cursor);
+                // The ordering assertions below read the media as it was handed over.
+                if (!positioned && name.endsWith(".mp4")) fileChunks.push(chunk);
+              }
+            };
+          },
           getFile: async () => {
-            stagedFile = new Blob(fileChunks);
+            stagedFile = new Blob([bytesFor(name).bytes]);
             return stagedFile;
           }
         }),
+        // Nothing stale to collect here; test-safari.mjs covers the sweep.
+        keys: async function* () {},
         removeEntry: async () => {}
       })
     }

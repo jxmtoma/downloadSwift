@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extension_name__",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "__MSG_extension_description__",
   "default_locale": "en",
   "permissions": [
@@ -27,6 +27,7 @@
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
+    "64": "icons/icon-64.png",
     "128": "icons/icon-128.png"
   },
   "action": {

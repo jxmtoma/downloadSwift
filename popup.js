@@ -1,10 +1,19 @@
 import { downloadFilename } from "./media.mjs";
 import { formatTimeUntil, localizeDocument, t } from "./i18n.mjs";
+import { createTsTransmuxer } from "./hls.mjs";
+import { getMedia } from "./resolve.mjs";
+import { makePreview } from "./preview.mjs";
+
+const api = globalThis.browser ?? globalThis.chrome;
 
 localizeDocument();
 
 const ORIGINS = ["https://*/*"];
-const ACTIVE_JOB_STATES = new Set(["queued", "preparing", "downloading", "saving"]);
+// Enough of a fragmented track to hold its first decodable frame.
+const PREVIEW_BYTES = 2 * 1024 * 1024;
+// "ready" means the file is built and waiting on the user to save it, which is
+// how Safari works: it is not finished, so it belongs with the active jobs.
+const ACTIVE_JOB_STATES = new Set(["queued", "preparing", "downloading", "saving", "ready"]);
 const count = document.querySelector("#count");
 const status = document.querySelector("#status");
 const detectionBadge = document.querySelector("#detection-badge");
@@ -26,10 +35,30 @@ const viewTitle = document.querySelector("#view-title");
 
 let currentTabId;
 let currentTabTitle = "";
+let currentTabOrigin = "";
 let pollTimer;
 let selectedView = "detected";
+const requestedPreviews = new Set();
 
 const storageKey = () => `media:${currentTabId}`;
+
+// Detection watches requests, and a request is only visible where the extension
+// holds permission for the host that serves it. A video page almost always pulls
+// its media from a different domain than the page, so a grant covering only the
+// page's own origin sees nothing at all. The blanket pattern is what gets asked
+// for; Safari answers it with the choice between this site and every site.
+const accessOrigins = () => ORIGINS;
+
+// Safari grants host access one site at a time and does not report the blanket
+// pattern back as granted when only a site was allowed, so both are checked:
+// asking about one alone leaves the popup either permanently off or wrongly on.
+const siteOrigins = () => (currentTabOrigin ? [`${currentTabOrigin}/*`] : null);
+
+async function detectionAllowed() {
+  if (await api.permissions.contains({ origins: ORIGINS })) return true;
+  const site = siteOrigins();
+  return site ? api.permissions.contains({ origins: site }) : false;
+}
 
 function formatBytes(bytes) {
   if (!bytes) return "";
@@ -55,7 +84,7 @@ function visibleFilename(item, job) {
   if (job?.filename) return job.filename;
   const pageTitle = job?.pageTitle ?? currentTabTitle;
   if (item.kind === "file") return downloadFilename(pageTitle, item);
-  if (item.format === "HLS") {
+  if (item.format === "HLS" || item.format === "DASH") {
     return downloadFilename(pageTitle, { format: "MP4", name: "video.mp4" });
   }
   return item.name;
@@ -90,7 +119,7 @@ async function startDownload(item, pageTitle = currentTabTitle) {
     status: t("status_starting"),
     tabId: currentTabId
   };
-  await chrome.storage.session.set({
+  await api.storage.session.set({
     [key]: job
   });
 
@@ -101,22 +130,58 @@ async function startDownload(item, pageTitle = currentTabTitle) {
   };
   if (item.kind === "file") message.filename = downloadFilename(pageTitle, item);
 
-  const response = await chrome.runtime.sendMessage(message);
-  if (!response?.ok) {
-    await chrome.storage.session.set({
+  // Not awaited, and no browser detection either. Firefox and Safari answer only
+  // once the whole job has finished, Chrome answers immediately, and both write
+  // the real reason onto the job when something fails. Reading the reply to find
+  // that out meant guessing which browser this is, and guessing wrong turned a
+  // real error into "could not start the download" with nothing to act on.
+  api.runtime.sendMessage(message).catch(async (error) => {
+    // Only reached when the message never arrived at all, which the job itself
+    // cannot report because nothing ever picked it up.
+    await api.storage.session.set({
       [key]: {
         ...job,
-        error: response?.error || t("error_start_download"),
+        error: error.message,
         state: "error",
-        status: t("error_start_download")
+        status: error.message || t("error_start_download")
       }
     });
-    throw new Error(response?.error || t("error_start_download"));
-  }
+  });
+}
+
+// Safari refuses a download attribute clicked from a background page, so the
+// save runs here instead, on the user's own click. The bytes are read straight
+// out of storage rather than from a blob URL the background page made, because
+// that page can be unloaded long before the user gets round to clicking.
+async function saveReadyJob(job) {
+  // The background page reads the file and hands back a URL. Reading it here
+  // instead gave a zero-byte blob, and a zero-byte save, even though that page
+  // had already checked the very same file was not empty.
+  const prepared = await api.runtime.sendMessage({
+    jobId: job.id,
+    target: "service-worker",
+    type: "prepare-save"
+  });
+  if (!prepared?.url) throw new Error(prepared?.error || t("error_empty_output"));
+
+  const link = document.createElement("a");
+  link.download = job.filename || "video.mp4";
+  link.href = prepared.url;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  await api.storage.session.set({
+    [`download-job:${job.id}`]: {
+      ...job,
+      state: "complete",
+      status: t("status_handed_to_browser")
+    }
+  });
 }
 
 async function cancelDownload(job) {
-  const response = await chrome.runtime.sendMessage({
+  const response = await api.runtime.sendMessage({
     jobId: job.id,
     target: "service-worker",
     type: "cancel-download"
@@ -124,7 +189,137 @@ async function cancelDownload(job) {
   if (!response?.ok) throw new Error(response?.error || t("error_cancel_download"));
 }
 
-function renderItems(items, jobs = []) {
+// The frame is decoded here rather than in the worker: a service worker has no
+// DOM at all, and an offscreen document is never rendered, which is exactly the
+// case a <video> element is not obliged to decode for. The popup is a real
+// rendered document, and it is open precisely when previews are worth having.
+const armPreview = (item, hosts) => api.runtime.sendMessage({
+  hosts,
+  item,
+  target: "service-worker",
+  type: "arm-preview"
+});
+
+const disarmPreview = (item, ruleId) => api.runtime.sendMessage({
+  ruleId,
+  target: "service-worker",
+  type: "disarm-preview",
+  url: item.url
+}).catch(() => {});
+
+// A self-contained track's media range runs to the end of the file; only the
+// opening slice of it is needed for one frame.
+const sliceRange = (mediaRange) => {
+  const start = Number(/bytes=(\d+)-/.exec(mediaRange)?.[1] ?? 0);
+  return `bytes=${start}-${start + PREVIEW_BYTES - 1}`;
+};
+
+// A ranged response states the whole resource's length after the slash in
+// Content-Range, which is an exact size nobody has to estimate.
+const totalFromRange = (response) => (
+  Number(/\/\s*(\d+)\s*$/.exec(response.headers.get("content-range") ?? "")?.[1]) || 0
+);
+
+const readRange = async (url, headers) => {
+  const response = await fetch(url, { cache: "no-store", credentials: "include", headers });
+  if (!response.ok) throw new Error(String(response.status));
+  return { bytes: new Uint8Array(await response.arrayBuffer()), total: totalFromRange(response) };
+};
+
+const readBytes = async (url, headers) => (await readRange(url, headers)).bytes;
+
+const storeSize = async (item, bytes, exact) => {
+  if (!(bytes > 0)) return;
+  await api.storage.session.set({ [`estimate:${item.url}`]: { bytes, exact } });
+};
+
+// A stream has no single file to sample, so the preview is built from its first
+// segment: enough to decode one frame, and the same work the download does on
+// its first iteration. The playlist and the segments can sit on different hosts,
+// so the replay rule is armed once for each.
+async function streamPreviewBlob(item) {
+  const media = await getMedia(item, {
+    fetchJson: async (url) => JSON.parse(new TextDecoder().decode(await readBytes(url))),
+    fetchText: async (url) => new TextDecoder().decode(await readBytes(url))
+  });
+
+  const first = media.video ?? { url: media.segmentUrls[0] };
+  const hosts = [...new Set([media.initUrl, first.url, media.video?.url]
+    .filter(Boolean)
+    .map((url) => new URL(url).hostname))];
+
+  const armed = await armPreview(item, hosts);
+  try {
+    if (media.video) {
+      // A self-contained track: the header plus one fragment is a playable clip.
+      // Both responses are ranged, so between them they also state the exact
+      // size of each track without a request of their own.
+      const [init, body, audioProbe] = await Promise.all([
+        readRange(media.video.url, { Range: media.video.initRange }),
+        readRange(media.video.url, { Range: sliceRange(media.video.mediaRange) }),
+        readRange(media.audio.url, { Range: "bytes=0-0" }).catch(() => ({ total: 0 }))
+      ]);
+      const exact = init.total + audioProbe.total;
+      if (exact > 0) await storeSize(item, exact, true);
+      return new Blob([init.bytes, body.bytes], { type: "video/mp4" });
+    }
+
+    // Segment lists state no total anywhere, so the only figure available short
+    // of fetching every segment is the declared bitrate over the runtime.
+    await storeSize(
+      item,
+      Math.round((media.bitsPerSecond || 0) / 8 * (media.durationSeconds || 0)),
+      false
+    );
+
+    const parts = [];
+    if (media.initUrl) parts.push(await readBytes(media.initUrl));
+    const segment = await readBytes(media.segmentUrls[0]);
+    if (media.extension === "mp4") {
+      parts.push(segment);
+    } else {
+      const transmux = createTsTransmuxer(globalThis.muxjs);
+      for (const chunk of transmux(segment)) {
+        if (!parts.length) parts.push(chunk.initSegment);
+        parts.push(chunk.data);
+      }
+    }
+    return new Blob(parts, { type: "video/mp4" });
+  } finally {
+    if (armed?.ok) await disarmPreview(item, armed.ruleId);
+  }
+}
+
+async function fetchPreview(item) {
+  const armed = await armPreview(item);
+  if (!armed?.ok) return;
+
+  try {
+    const blob = item.kind === "file"
+      ? new Blob([await readBytes(item.url)], { type: item.mime || "video/mp4" })
+      : await streamPreviewBlob(item);
+    const { dataUrl } = await makePreview(item, {
+      createElement: (tag) => document.createElement(tag),
+      fetchBytes: async () => blob
+    });
+    if (dataUrl) await api.storage.session.set({ [`preview:${item.url}`]: dataUrl });
+  } finally {
+    await disarmPreview(item, armed.ruleId);
+  }
+}
+
+// One at a time: every preview arms its own redirect rule and pulls two
+// megabytes, and firing all of them at once would stall the list it decorates.
+let previewQueue = Promise.resolve();
+function requestPreviews(items, previews) {
+  for (const item of items) {
+    if (previews.has(item.url) || requestedPreviews.has(item.url)) continue;
+    requestedPreviews.add(item.url);
+    previewQueue = previewQueue.then(() => fetchPreview(item).catch(() => {}));
+  }
+}
+
+function renderItems(items, jobs = [], previews = new Map(), estimates = new Map()) {
   const visibleItems = [...items];
   for (const job of jobs.sort((left, right) => right.createdAt - left.createdAt)) {
     if (job.item && !visibleItems.some((item) => item.url === job.item.url)) {
@@ -150,7 +345,16 @@ function renderItems(items, jobs = []) {
 
     const format = document.createElement("div");
     format.className = `format-tile ${item.kind}`;
-    format.textContent = item.format;
+    const preview = previews.get(item.url);
+    if (preview) {
+      const thumbnail = document.createElement("img");
+      thumbnail.alt = "";
+      thumbnail.src = preview;
+      format.classList.add("has-preview");
+      format.append(thumbnail);
+    } else {
+      format.textContent = item.format;
+    }
 
     const details = document.createElement("div");
     details.className = "media-details";
@@ -179,9 +383,14 @@ function renderItems(items, jobs = []) {
       meta.append(background);
     }
 
-    if (item.size) {
+    const estimated = estimates.get(item.url);
+    if (item.size || estimated) {
       const size = document.createElement("span");
-      size.textContent = formatBytes(item.size);
+      // A stream's figure is derived from its bitrate, so it is marked as
+      // approximate rather than presented as a byte count anyone measured.
+      size.textContent = item.size || estimated?.exact
+        ? formatBytes(item.size || estimated.bytes)
+        : `~${formatBytes(estimated.bytes)}`;
       meta.append(size);
     }
 
@@ -193,7 +402,22 @@ function renderItems(items, jobs = []) {
     const actions = document.createElement("div");
     actions.className = "media-actions";
 
-    if (item.kind === "file" || item.format === "HLS") {
+    if (job?.state === "ready") {
+      const save = document.createElement("button");
+      save.className = "primary";
+      save.type = "button";
+      save.textContent = t("save");
+      save.addEventListener("click", async () => {
+        save.disabled = true;
+        try {
+          await saveReadyJob(job);
+        } catch (error) {
+          setError(error);
+          save.disabled = false;
+        }
+      });
+      actions.append(save);
+    } else if (item.kind === "file" || item.format === "HLS" || item.format === "DASH") {
       const download = document.createElement("button");
       download.className = "primary";
       download.type = "button";
@@ -216,7 +440,9 @@ function renderItems(items, jobs = []) {
     }
 
     const copy = document.createElement("button");
-    copy.className = item.kind === "file" || item.format === "HLS" ? "copy-button" : "primary";
+    copy.className = item.kind === "file" || item.format === "HLS" || item.format === "DASH"
+      ? "copy-button"
+      : "primary";
     if (jobActive) copy.classList.add("cancel-button");
     copy.type = "button";
     copy.textContent = jobActive
@@ -270,8 +496,8 @@ function renderItems(items, jobs = []) {
 
 async function addNativeProgress(jobs) {
   return Promise.all(jobs.map(async (job) => {
-    if (job.downloadId == null || job.state !== "downloading") return job;
-    const [download] = await chrome.downloads.search({ id: job.downloadId });
+    if (!api.downloads || job.downloadId == null || job.state !== "downloading") return job;
+    const [download] = await api.downloads.search({ id: job.downloadId });
     if (!download || download.totalBytes <= 0) return job;
 
     const start = 95;
@@ -289,7 +515,7 @@ async function addNativeProgress(jobs) {
 }
 
 async function render() {
-  const allowed = await chrome.permissions.contains({ origins: ORIGINS });
+  const allowed = await detectionAllowed();
   detectionBadge.dataset.active = String(allowed);
   detectionLabel.textContent = allowed ? t("state_active") : t("state_off");
   permissionControls.hidden = allowed;
@@ -301,7 +527,7 @@ async function render() {
     return;
   }
 
-  const stored = await chrome.storage.session.get(null);
+  const stored = await api.storage.session.get(null);
   const allJobs = Object.entries(stored)
     .filter(([key]) => key.startsWith("download-job:"))
     .map(([, job]) => job);
@@ -341,7 +567,12 @@ async function render() {
       ? t("empty_downloading_message")
       : t("empty_detected_message");
   list.setAttribute("aria-label", viewTitle.textContent);
-  renderItems(selectedView === "detected" ? detectedItems : [], jobs);
+  const entries = (prefix) => new Map(Object.entries(stored)
+    .filter(([key]) => key.startsWith(prefix))
+    .map(([key, value]) => [key.slice(prefix.length), value]));
+  const previews = entries("preview:");
+  renderItems(selectedView === "detected" ? detectedItems : [], jobs, previews, entries("estimate:"));
+  if (selectedView === "detected") requestPreviews(detectedItems, previews);
 
   clearTimeout(pollTimer);
   if (jobs.some((job) => job.downloadId != null && job.state === "downloading")) {
@@ -364,10 +595,10 @@ downloadedTab.addEventListener("click", () => selectView("downloaded").catch(set
 enableButton.addEventListener("click", async () => {
   enableButton.disabled = true;
   try {
-    const allowed = await chrome.permissions.request({ origins: ORIGINS });
+    const allowed = await api.permissions.request({ origins: accessOrigins() });
     if (!allowed) throw new Error(t("error_detection_not_enabled"));
     // The page already made its media requests; only new ones can be observed.
-    if (currentTabId != null) await chrome.tabs.reload(currentTabId);
+    if (currentTabId != null) await api.tabs.reload(currentTabId);
     await render();
   } catch (error) {
     setError(error);
@@ -379,13 +610,15 @@ enableButton.addEventListener("click", async () => {
 disableButton.addEventListener("click", async () => {
   disableButton.disabled = true;
   try {
-    await chrome.permissions.remove({ origins: ORIGINS });
-    const stored = await chrome.storage.session.get(null);
+    await api.permissions.remove({ origins: accessOrigins() });
+    const site = siteOrigins();
+    if (site) await api.permissions.remove({ origins: site }).catch(() => {});
+    const stored = await api.storage.session.get(null);
     const mediaKeys = Object.keys(stored).filter((key) => key.startsWith("media:"));
-    if (mediaKeys.length) await chrome.storage.session.remove(mediaKeys);
-    const tabs = await chrome.tabs.query({});
+    if (mediaKeys.length) await api.storage.session.remove(mediaKeys);
+    const tabs = await api.tabs.query({});
     await Promise.all(tabs.flatMap((tab) => (
-      tab.id == null ? [] : chrome.action.setBadgeText({ tabId: tab.id, text: "" })
+      tab.id == null ? [] : api.action.setBadgeText({ tabId: tab.id, text: "" })
     )));
     await render();
   } catch (error) {
@@ -397,7 +630,7 @@ disableButton.addEventListener("click", async () => {
 
 clearButton.addEventListener("click", async () => {
   try {
-    const stored = await chrome.storage.session.get(null);
+    const stored = await api.storage.session.get(null);
     const jobKeys = Object.entries(stored)
       .filter(([key, job]) => (
         key.startsWith("download-job:")
@@ -409,11 +642,14 @@ clearButton.addEventListener("click", async () => {
       ))
       .map(([key]) => key);
     if (selectedView === "downloaded") {
-      if (jobKeys.length) await chrome.storage.session.remove(jobKeys);
+      if (jobKeys.length) await api.storage.session.remove(jobKeys);
     } else {
+      // Previews only exist for listed items, so they go with the list.
+      const derivedKeys = (stored[storageKey()] ?? [])
+        .flatMap((item) => [`preview:${item.url}`, `estimate:${item.url}`]);
       await Promise.all([
-        chrome.storage.session.remove([storageKey(), ...jobKeys]),
-        chrome.action.setBadgeText({ tabId: currentTabId, text: "" })
+        api.storage.session.remove([storageKey(), ...derivedKeys, ...jobKeys]),
+        api.action.setBadgeText({ tabId: currentTabId, text: "" })
       ]);
     }
     await render();
@@ -422,17 +658,25 @@ clearButton.addEventListener("click", async () => {
   }
 });
 
-chrome.storage.onChanged.addListener((changes, area) => {
+api.storage.onChanged.addListener((changes, area) => {
   if (currentTabId == null || area !== "session") return;
-  if (changes[storageKey()] || Object.keys(changes).some((key) => key.startsWith("download-job:"))) {
+  if (changes[storageKey()] || Object.keys(changes).some((key) => (
+    key.startsWith("download-job:") || key.startsWith("preview:") || key.startsWith("estimate:")
+  ))) {
     render().catch(setError);
   }
 });
 
 (async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await api.tabs.query({ active: true, currentWindow: true });
   if (tab?.id == null) throw new Error(t("error_no_active_tab"));
   currentTabId = tab.id;
   currentTabTitle = tab.title || "";
+  try {
+    const { origin, protocol } = new URL(tab.url ?? "");
+    if (protocol === "https:") currentTabOrigin = origin;
+  } catch {
+    // A tab with no readable URL falls back to the blanket pattern.
+  }
   await render();
 })().catch(setError);

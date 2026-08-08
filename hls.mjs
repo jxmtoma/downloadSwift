@@ -78,7 +78,7 @@ export function selectHlsVariant(text, baseUrl) {
     });
   }
 
-  if (!variants.length) return { url: baseUrl };
+  if (!variants.length) return { bandwidth: 0, url: baseUrl };
 
   const selected = variants.sort((left, right) => right.bandwidth - left.bandwidth)[0];
   if (selected.audioGroup) {
@@ -92,7 +92,7 @@ export function selectHlsVariant(text, baseUrl) {
     if (separateAudio) throw new Error(t("error_separate_audio"));
   }
 
-  return { url: selected.url };
+  return { bandwidth: selected.bandwidth, url: selected.url };
 }
 
 export function parseHlsMedia(text, baseUrl) {
