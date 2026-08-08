@@ -53,8 +53,9 @@ h2 { line-height: 1.25; }
 .lede { color: var(--muted); font-size: 20px; max-width: 720px; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
-.button { border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-weight: 700; padding: 11px 18px; text-decoration: none; }
+.button { align-items: center; border: 1px solid var(--border); border-radius: 10px; color: var(--text); display: inline-flex; font-weight: 700; gap: 9px; padding: 11px 18px; text-decoration: none; }
 .button.primary { background: #4f46e5; border-color: #4f46e5; }
+.button svg { fill: currentColor; height: 19px; width: 19px; }
 
 .grid { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); }
 .grid article,
@@ -65,8 +66,15 @@ h2 { line-height: 1.25; }
   padding: 24px;
 }
 .grid p,
-.notice p { color: var(--muted); }
+.notice p,
+.notice li { color: var(--muted); }
 .notice { margin-top: 16px; }
+.notice h3 { font-size: 17px; margin: 28px 0 8px; }
+.notice ul { margin: 0; padding-left: 20px; }
+.notice summary { color: var(--accent); cursor: pointer; margin-top: 28px; }
+.tag { background: var(--panel); border: 1px solid var(--border); border-radius: 999px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .08em; padding: 2px 9px; text-transform: uppercase; vertical-align: 2px; }
+.tag.soon { color: var(--muted); }
+.meta { color: var(--muted); font-size: 14px; margin-top: 20px; }
 
 .document { max-width: 780px; }
 .document h1 { font-size: clamp(42px, 6vw, 64px); }
