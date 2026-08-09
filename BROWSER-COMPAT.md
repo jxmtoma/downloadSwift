@@ -62,8 +62,12 @@ Ordered by how long it took to find, not by severity.
   doesn't exist there, and the rejection took down every HLS/DASH download before
   it started — not a degraded path, a total failure. `tabIds` is now applied only
   when there's no background page ([`service-worker.mjs:257`](service-worker.mjs:257)).
-- **No notification action buttons.** Completed files open on notification *click*
-  instead.
+- **No notification action buttons**, and a notification click is not a user
+  action ([1523523](https://bugzilla.mozilla.org/show_bug.cgi?id=1523523)), which
+  `downloads.open` requires. Both routes to opening a finished file are therefore
+  closed, and the click *reveals* it in the Downloads panel instead —
+  `downloads.show` carries no such rule. The manifest drops the `downloads.open`
+  permission rather than request one nothing can call.
 - **No offscreen document.** Preparation runs in the background page. Keep those
   jobs alive until their background message completes.
 - **Promise-based API namespace** and a narrower set of `webRequest` listener

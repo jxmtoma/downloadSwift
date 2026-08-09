@@ -169,8 +169,8 @@ and [temporary installation](https://developer.apple.com/documentation/safariser
 3. Run the checks above. In a clean current Firefox profile, temporarily load
    `dist/firefox/manifest.json` from `about:debugging#/runtime/this-firefox` and
    test direct MP4/WebM, TS-HLS, fMP4-HLS, cancel, retry, ETA, source-tab
-   closure, notification click, denied site access, HTTP rejection, and all
-   nine languages.
+   closure, notification click revealing the file in Downloads, denied site
+   access, HTTP rejection, and all nine languages.
 4. Upload `dist/downloadswift-firefox-<version>.zip`, select Firefox Desktop,
    and use **Download Management** plus **Photos, Music & Videos** as the two
    categories.
@@ -191,14 +191,18 @@ Use these permission justifications:
   limited request context only on sites the user enables.
 - `declarativeNetRequestWithHostAccess`: temporarily replay that context only
   for the selected media fetch.
-- `downloads` and `downloads.open`: save and monitor the selected file, cancel
-  it, reveal it in Firefox Downloads, and open it after a notification click.
+- `downloads`: save and monitor the selected file, cancel it, and reveal it in
+  Firefox Downloads after a notification click. `downloads.open` is deliberately
+  not requested: Firefox allows it only from a user-action handler, which a
+  notification click is not.
 - `notifications`: notify the user when a selected download finishes.
 - `storage`: keep detection results and job state in browser-session memory.
 
-Firefox notifications do not expose Chrome-style action buttons. Clicking the
-Firefox completion notification opens the file; showing its folder remains
-available from Firefox Downloads.
+Firefox notifications do not expose Chrome-style action buttons, and a
+notification click does not count as the user action `downloads.open` requires
+([1523523](https://bugzilla.mozilla.org/show_bug.cgi?id=1523523)). Clicking the
+Firefox completion notification therefore reveals the file in Firefox Downloads,
+from where the user opens it.
 
 Use this reviewer note:
 
@@ -211,10 +215,36 @@ Use this reviewer note:
 > included. YouTube, DRM, encrypted/live streams, and access-control bypassing
 > are intentionally unsupported.
 
-Mozilla requires signing for release and beta Firefox builds. For this readable
-source tree, provide the mux.js release links in **Notes for Reviewers**; if AMO
-asks for a source archive, upload the repository source for the exact tag with
-the build command `sh scripts/package.sh`.
+Mozilla requires signing for release and beta Firefox builds.
+
+### Source code submission is required, not conditional
+
+AMO asks every submission whether it uses generators, minifiers, bundlers, or
+"any other tool that takes code or files, applies processing, and generates code
+or file(s) to include in the extension". **Answer yes.**
+[`scripts/browser-manifest.mjs`](scripts/browser-manifest.mjs) generates the
+`manifest.json` that ships inside the Firefox ZIP, so the uploaded manifest is
+machine-generated rather than hand-written. Answering no because the tree is
+otherwise readable is wrong and is the kind of thing a reviewer rejects over.
+
+Upload the repository source for the exact tag:
+
+```sh
+git archive --format=zip --prefix=downloadswift/ -o ../downloadswift-source-<version>.zip <tag>
+```
+
+AMO requires the archive to carry step-by-step build instructions, a build
+script, operating-system and build-environment requirements, and the required
+versions and installation instructions of every program used. All four live in
+the **Build from source** section of [README.md](README.md), which sits at the
+archive root — point reviewers there rather than restating it in the notes. Keep
+the mux.js release links in **Notes for Reviewers** regardless: the source upload
+does not replace them, because `vendor/mux-mp4.min.js` is still unreadable inside
+the archive.
+
+Two builds of one source are byte-identical in content but not as ZIP bytes,
+since zip records modification times. README.md tells reviewers to diff the
+extracted trees rather than compare checksums.
 
 Official references: [submission flow](https://extensionworkshop.com/documentation/publish/submitting-an-add-on/),
 [web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/),

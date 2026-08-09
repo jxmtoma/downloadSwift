@@ -21,7 +21,7 @@ const stored = {
 const downloadListeners = [];
 const notificationClickListeners = [];
 const notifications = [];
-const openedDownloads = [];
+const shownDownloads = [];
 const requestHeaderOptions = [];
 const runtimeListeners = [];
 const sessionRules = [];
@@ -67,8 +67,14 @@ globalThis.browser = {
       return id;
     },
     onChanged: { addListener: (listener) => downloadListeners.push(listener) },
-    open: (id) => openedDownloads.push(id),
-    show: () => {}
+    // Firefox refuses downloads.open() outside a user-action handler, and a
+    // notification click is not one (bugzilla 1523523). Refuse it the way the
+    // browser does, so reaching for it fails here instead of shipping a
+    // notification whose click silently does nothing.
+    open: () => {
+      throw new Error("downloads.open may only be called from a user input handler");
+    },
+    show: (id) => shownDownloads.push(id)
   },
   i18n: { getMessage: (key) => key },
   notifications: {
@@ -180,7 +186,7 @@ assert.equal(notifications.length, 1);
 assert.equal(notifications[0].notification.buttons, undefined);
 assert.equal(notifications[0].notification.contextMessage, undefined);
 notificationClickListeners[0](notifications[0].id);
-assert.deepEqual(openedDownloads, [21]);
+assert.deepEqual(shownDownloads, [21], "the click must reveal the file, not try to open it");
 
 // A direct download end to end: the replay rule must be one Firefox accepts,
 // and the response must not settle until the native transfer reports back.

@@ -32,6 +32,9 @@ const firefox = firefoxManifest(manifest);
 assert.deepEqual(firefox.background, { page: "background.html" });
 assert.equal(firefox.minimum_chrome_version, undefined);
 assert.ok(!firefox.permissions.includes("downloads.ui"));
+// Firefox can never reach downloads.open: it needs a user-action handler and a
+// notification click is not one, so requesting it asks for what it cannot use.
+assert.ok(!firefox.permissions.includes("downloads.open"));
 assert.ok(!firefox.permissions.includes("offscreen"));
 assert.equal(firefox.browser_specific_settings.gecko.strict_min_version, "142.0");
 assert.deepEqual(

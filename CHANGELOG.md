@@ -2,6 +2,12 @@
 
 ## 0.4.0 — 2026-08-04
 
+- Reveal a finished file in Firefox Downloads when its completion notification is
+  clicked, rather than trying to open it. Firefox allows `downloads.open` only
+  from a user-action handler and does not count a notification click as one, so
+  the only route the Firefox build had to a finished file was refused and the
+  click did nothing at all. The Firefox manifest no longer requests
+  `downloads.open`, which nothing there could call.
 - Read the prepared file in the page that wrote it and hand the popup a URL,
   rather than having the popup open the same file itself. On Safari the popup's
   read came back empty and saved a zero-byte file, while the page that wrote it

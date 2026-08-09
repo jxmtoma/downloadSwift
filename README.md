@@ -54,7 +54,9 @@ timeline. Direct and HLS downloads use the extension's progress UI and hand the
 completed file to the browser's save flow. Active progress is visible from the
 popup on any tab, downloads continue after their source tab closes, and Chrome and
 Edge send a notification with actions to open each saved file or show it in its
-folder. Firefox opens the saved file when its completion notification is clicked.
+folder. Firefox shows the saved file in its Downloads panel when the completion
+notification is clicked: opening a file needs a user-action handler there, and a
+notification click is not one.
 Safari has no WebExtension downloads or notifications API, and does not honour a
 download attribute clicked from a background page, so a finished job waits there
 with a **Save** button: pressing it saves from the popup, where the click is a
@@ -92,6 +94,52 @@ request's `Referer`, `Origin`, `Accept`, and normalized `Range` headers only for
 that exact media URL, and only for the extension's own requests. When no
 `Referer` was captured, the page's own origin is used in its place. The session
 rule is removed as soon as the remote transfer finishes or fails.
+
+## Build from source
+
+The packages are generated, so this is what reproduces a submitted build. There
+is no dependency installation step and no network access is needed.
+
+**Build environment**
+
+- Operating system: macOS or Linux, or Windows via WSL or Git Bash. The build is
+  a POSIX shell script.
+- [Node.js](https://nodejs.org/) 18 or later, installed from nodejs.org or a
+  package manager. Verified on 26.5.0.
+- `zip` and `unzip` — preinstalled on macOS, `apt install zip unzip` on Debian
+  and Ubuntu. Verified on Info-ZIP 3.0.
+- **npm is not used.** There is no `package.json`, no `node_modules`, and no
+  dependency to install. The only third-party library, `vendor/mux-mp4.min.js`,
+  is committed to the source tree.
+
+**Steps**
+
+1. Install Node.js and `zip`/`unzip` as above.
+2. From the root of this source tree, run the build script. It is the only step,
+   and it performs every technical step itself:
+
+   ```sh
+   sh scripts/package.sh
+   ```
+
+3. The Firefox package is written to `dist/downloadswift-firefox-<version>.zip`,
+   where `<version>` is the `version` field of `manifest.json`. The script also
+   writes the Chrome/Edge and Safari packages and prints each path.
+
+What the script does: copies the shared source files, generates the Firefox
+manifest from `manifest.json` with `scripts/browser-manifest.mjs` (which swaps
+the service worker for a background page, removes the permissions Firefox cannot
+use, and adds `browser_specific_settings`), then zips the result and verifies the
+archive.
+
+**Comparing against the submitted package.** Two builds of the same source
+produce byte-identical *contents* but different ZIP bytes, because zip records
+each file's modification time. Compare the extracted trees rather than a checksum
+of the archive:
+
+```sh
+unzip -q dist/downloadswift-firefox-<version>.zip -d /tmp/built && unzip -q <submitted>.zip -d /tmp/submitted && diff -r /tmp/built /tmp/submitted
+```
 
 ## Check
 

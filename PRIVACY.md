@@ -34,10 +34,11 @@ Media requests go only to the website or media host selected by the user.
 - `declarativeNetRequest`: replay only the request context needed for a
   user-selected media URL.
 - `downloads` and `downloads.open`: save the prepared file and perform only the
-  open/show action selected by the user in Chrome, Edge, and Firefox. Chrome and
-  Edge also use `downloads.ui` to suppress duplicate browser download UI during
-  the managed handoff. Safari requests none of these permissions and hands the
-  prepared file to its native save flow.
+  open/show action selected by the user in Chrome and Edge. Firefox saves and
+  reveals the file but does not request `downloads.open`, which it permits only
+  from a user action. Chrome and Edge also use `downloads.ui` to suppress
+  duplicate browser download UI during the managed handoff. Safari requests none
+  of these permissions and hands the prepared file to its native save flow.
 - `offscreen`: prepare direct and HLS downloads without opening another tab in
   Chrome and Edge. Firefox and Safari perform the same work in a background page.
 - `storage`: keep detected items and download state for the browser session.

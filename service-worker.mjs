@@ -12,6 +12,12 @@ const usesBackgroundPage = typeof document !== "undefined";
 const usesAnchorDownload = Boolean(
   api.runtime.getManifest?.().browser_specific_settings?.safari
 ) || !api.downloads?.download;
+// downloads.open() may only be called from a user-action handler, and Firefox
+// does not count a notification click as one (bugzilla 1523523), so the call is
+// refused and the click does nothing at all. The engines that grant the gesture
+// are the same ones that offer notification action buttons, so one check drives
+// both halves of the notification.
+const notificationClickIsUserAction = Boolean(api.notifications?.onButtonClicked);
 const MAX_ITEMS_PER_TAB = 50;
 const OFFSCREEN_PATH = "offscreen.html";
 const COMPLETE_NOTIFICATION_PREFIX = "download-complete:";
@@ -673,7 +679,7 @@ async function finishNativeDownload(change) {
           title: t("notification_complete"),
           type: "basic"
         };
-        if (api.notifications?.onButtonClicked) {
+        if (notificationClickIsUserAction) {
           notification.buttons = [
             { title: t("open_file") },
             { title: t("show_in_folder") }
@@ -718,7 +724,11 @@ api.notifications?.onButtonClicked?.addListener((notificationId, buttonIndex) =>
 
 api.notifications?.onClicked?.addListener((notificationId) => {
   const downloadId = notificationDownloadId(notificationId);
-  if (downloadId != null) api.downloads.open(downloadId);
+  if (downloadId == null) return;
+  // Revealing the file carries no user-action rule, so where the click cannot
+  // open it the click still does something rather than being swallowed.
+  if (notificationClickIsUserAction) api.downloads.open(downloadId);
+  else api.downloads.show(downloadId);
 });
 
 api.runtime.onStartup.addListener(() => {

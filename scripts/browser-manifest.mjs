@@ -12,7 +12,11 @@ function backgroundPageManifest(source, removedPermissions) {
 
 export function firefoxManifest(source) {
   return {
-    ...backgroundPageManifest(source, ["downloads.ui", "offscreen"]),
+    // downloads.open is dropped, not just unused: Firefox refuses it outside a
+    // user-action handler and a notification click is not one, so nothing here
+    // can ever call it. Asking for a permission that cannot be exercised is
+    // what AMO review flags.
+    ...backgroundPageManifest(source, ["downloads.open", "downloads.ui", "offscreen"]),
     browser_specific_settings: {
       gecko: {
         data_collection_permissions: { required: ["websiteContent"] },
