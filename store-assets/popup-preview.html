@@ -31,61 +31,144 @@
         document.querySelector(`#${name}-tab`).setAttribute("aria-selected", String(name === view));
       }
 
+      // Fictional media. The rows are built the way popup.js builds them, so a
+      // screenshot shows the real markup and stylesheet rather than a mock that
+      // drifts: a preview is an <img> inside the tile, the size is its own span
+      // beside the chips, and the job state is a class on .job-status.
       const items = view === "detected" ? [
         {
           action: "Download",
+          chips: ["Video file"],
           filename: "Design systems workshop.mp4",
           format: "MP4",
           host: "media.example",
-          meta: "Video file · 84.2 MB",
+          preview: "preview-frame-a.jpg",
+          size: "84.2 MB",
           type: "file"
         },
         {
           action: "Download",
+          chips: ["Stream playlist"],
           filename: "Product launch recording.mp4",
           format: "HLS",
           host: "cdn.example",
-          meta: "Stream playlist",
+          preview: "preview-frame-b.jpg",
+          size: "~412 MB",
           type: "playlist"
+        },
+        {
+          action: "Download",
+          chips: ["Video file"],
+          filename: "Team retro highlights.webm",
+          format: "WEBM",
+          host: "video.example",
+          size: "22.6 MB",
+          type: "file"
         }
       ] : [{
         action: view === "downloading" ? "63%" : "Again",
+        chips: view === "downloading"
+          ? ["Downloading", "Background"]
+          : ["Downloaded"],
         filename: "Product launch recording.mp4",
         format: "MP4",
         host: "cdn.example",
-        meta: view === "downloading" ? "Downloading · Background" : "Downloaded",
+        preview: "preview-frame-b.jpg",
         progress: view === "downloading" ? 63 : 100,
+        size: "412 MB",
+        state: view === "downloading" ? "downloading" : "complete",
         status: view === "downloading"
-          ? "Converting segment 38 of 60 to MP4…"
+          ? "Converting segment 38 of 60 to MP4… 1 min left"
           : "Saved to Downloads.",
         type: "file"
       }];
 
       document.querySelector("#count").textContent = String(items.length);
       const list = document.querySelector("#media-list");
+
       for (const item of items) {
         const row = document.createElement("li");
         row.className = "media-item";
-        row.innerHTML = `
-          <div class="format-tile ${item.type}">${item.format}</div>
-          <div class="media-details">
-            <div class="media-name">${item.filename}</div>
-            <div class="media-meta"><span class="meta-chip">${item.meta}</span></div>
-            <div class="media-host">${item.host}</div>
-          </div>
-          <div class="media-actions">
-            <button class="primary" type="button">${item.action}</button>
-            <button class="copy-button${view === "downloading" ? " cancel-button" : ""}" type="button">
-              ${view === "downloading" ? "Cancel" : "Copy link"}
-            </button>
-          </div>`;
-        if (item.status) {
-          row.insertAdjacentHTML("beforeend", `
-            <div class="job-status ${view === "downloaded" ? "complete" : ""}">
-              <span>${item.status}</span>
-              <span class="job-progress"><span style="width:${item.progress}%"></span></span>
-            </div>`);
+
+        const format = document.createElement("div");
+        format.className = `format-tile ${item.type}`;
+        if (item.preview) {
+          const thumbnail = document.createElement("img");
+          thumbnail.alt = "";
+          thumbnail.src = item.preview;
+          format.classList.add("has-preview");
+          format.append(thumbnail);
+        } else {
+          format.textContent = item.format;
         }
+
+        const details = document.createElement("div");
+        details.className = "media-details";
+
+        const name = document.createElement("div");
+        name.className = "media-name";
+        name.textContent = item.filename;
+
+        const meta = document.createElement("div");
+        meta.className = "media-meta";
+        for (const chip of item.chips) {
+          const span = document.createElement("span");
+          span.className = "meta-chip";
+          span.textContent = chip;
+          meta.append(span);
+        }
+        if (item.size) {
+          const size = document.createElement("span");
+          size.textContent = item.size;
+          meta.append(size);
+        }
+
+        const host = document.createElement("div");
+        host.className = "media-host";
+        host.textContent = item.host;
+
+        const actions = document.createElement("div");
+        actions.className = "media-actions";
+
+        const primary = document.createElement("button");
+        primary.className = "primary";
+        primary.type = "button";
+        primary.textContent = item.action;
+        primary.disabled = view === "downloading";
+
+        const secondary = document.createElement("button");
+        secondary.className = view === "downloading"
+          ? "copy-button cancel-button"
+          : "copy-button";
+        secondary.type = "button";
+        secondary.textContent = view === "downloading" ? "Cancel" : "Copy link";
+
+        actions.append(primary, secondary);
+        details.append(name, meta, host);
+        row.append(format, details, actions);
+
+        if (item.status) {
+          const jobStatus = document.createElement("div");
+          jobStatus.className = `job-status ${item.state}`;
+
+          const jobLabel = document.createElement("span");
+          jobLabel.textContent = item.status;
+
+          const jobProgress = document.createElement("span");
+          jobProgress.className = "job-progress";
+          jobProgress.setAttribute("aria-label", "Download progress");
+          jobProgress.setAttribute("aria-valuemax", "100");
+          jobProgress.setAttribute("aria-valuemin", "0");
+          jobProgress.setAttribute("aria-valuenow", String(item.progress));
+          jobProgress.setAttribute("role", "progressbar");
+          const jobProgressBar = document.createElement("span");
+          jobProgressBar.style.width = `${item.progress}%`;
+          jobProgress.append(jobProgressBar);
+
+          jobStatus.append(jobLabel, jobProgress);
+          row.append(jobStatus);
+        }
+
         list.append(row);
       }
     </script>

@@ -92,6 +92,8 @@
       iframe {
         border: 0;
         display: block;
+        /* Replaced with the popup's own content height once it loads, so no
+           view shows a scrollbar or a band of dead space below the footer. */
         height: 560px;
         width: 420px;
       }
@@ -104,7 +106,7 @@
         <img src="../icon.svg" alt="">
         <span>Video &amp; Media Downloader</span>
       </div>
-      <div class="eyebrow">Private video saver</div>
+      <div id="eyebrow" class="eyebrow">Private video saver</div>
       <h1 id="headline">Detect. Download. Done.</h1>
       <p id="lead" class="lead">
         Save supported direct videos and HLS streams through a private, on-device workflow.
@@ -122,13 +124,52 @@
       </div>
     </section>
     <script>
+      // "free" is a framing of the detected view, not a fourth popup view: the
+      // popup has no such state, so only the copy beside it changes.
+      const copy = {
+        detected: {
+          eyebrow: "Private video saver",
+          features: ["Direct video + HLS", "Frame previews", "Seekable MP4 output"],
+          headline: "Detect. Download. Done.",
+          lead: "Every detected item shows a frame from the media itself, so you know what you are saving before you save it.",
+          popup: "detected"
+        },
+        downloading: {
+          eyebrow: "Private video saver",
+          features: ["Cross-tab progress", "Cancel anytime", "Survives tab close"],
+          headline: "Follow every download.",
+          lead: "Progress stays visible across tabs, and downloads continue after the source tab closes.",
+          popup: "downloading"
+        },
+        free: {
+          eyebrow: "Free and on-device",
+          features: ["No account", "No subscription", "No ads or telemetry"],
+          headline: "Free. All of it.",
+          lead: "No account, no subscription, no ads. Every feature is available to everyone, and nothing is sent to the developer.",
+          // The downloaded view, so the three store screenshots show three
+          // different states rather than repeating the detected list twice.
+          popup: "downloaded"
+        }
+      };
+
       const view = new URLSearchParams(location.search).get("view") || "detected";
-      document.querySelector("#popup").src = `popup-preview.html?view=${view}`;
-      if (view === "downloading") {
-        document.querySelector("#headline").textContent = "Follow every download.";
-        document.querySelector("#lead").textContent =
-          "Progress stays visible across tabs, and downloads continue after the source tab closes.";
-      }
+      const active = copy[view] ?? copy.detected;
+      const frame = document.querySelector("#popup");
+      // The popup builds its rows from a module script, so the height is only
+      // final after that has run — hence rAF rather than reading it on load.
+      frame.addEventListener("load", () => {
+        requestAnimationFrame(() => {
+          frame.style.height = `${frame.contentDocument.body.scrollHeight}px`;
+          document.body.dataset.ready = "true";
+        });
+      });
+      frame.src = `popup-preview.html?view=${active.popup}`;
+      document.querySelector("#eyebrow").textContent = active.eyebrow;
+      document.querySelector("#headline").textContent = active.headline;
+      document.querySelector("#lead").textContent = active.lead;
+      document.querySelector(".features").innerHTML = active.features
+        .map((feature) => `<span class="feature">${feature}</span>`)
+        .join("");
     </script>
   </body>
 </html>

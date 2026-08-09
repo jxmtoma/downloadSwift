@@ -152,8 +152,9 @@ and [temporary installation](https://developer.apple.com/documentation/safariser
 - Logo: `store-assets/icon-128.png`
 - Firefox manifest icons: `icons/icon-32.png` and `icons/icon-64.png`
 - Safari extension and generated app-icon source: `icon.svg` at manifest size 512
-- Screenshots: `store-assets/screenshot-detected.png` and
-  `store-assets/screenshot-downloading.png`
+- Screenshots: `store-assets/screenshot-detected.png`,
+  `store-assets/screenshot-downloading.png`, and
+  `store-assets/screenshot-free.png`
 - Small promotional tile: `store-assets/small-promo-440x280.png`
 - Large promotional tile: `store-assets/marquee-1400x560.png`
 
@@ -449,7 +450,7 @@ and [publishing flow](https://learn.microsoft.com/en-us/microsoft-edge/extension
   titles, download status, limited request headers, and same-host cookies.
   Declare that data is processed locally, is not sold, and is not used outside
   the extension's single purpose.
-- Upload `store-assets/icon-128.png`, both current 1280×800 screenshots, and
+- Upload `store-assets/icon-128.png`, all three current 1280×800 screenshots, and
   `store-assets/small-promo-440x280.png`. The 1400×560 marquee is optional.
 - Test the packed ZIP on clean Chrome profiles on macOS, Windows, and Linux:
   direct MP4/WebM, TS-HLS, fMP4-HLS, cancel, retry, source-tab closure,
