@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "Salve localmente arquivos de vídeo diretos e streams HLS não criptografados, com progresso, saída MP4 e sem rastreamento." },
+  "extension_description": { "message": "Salve localmente arquivos de vídeo diretos e streams HLS e DASH não criptografados, com seleção de qualidade, progresso, saída MP4 e sem rastreamento." },
   "brand_subtitle": { "message": "Salvador de vídeos privado" },
   "state_off": { "message": "Desativado" },
   "state_active": { "message": "Ativo" },
@@ -37,6 +37,8 @@
   "retry": { "message": "Tentar novamente" },
   "again": { "message": "Baixar novamente" },
   "download": { "message": "Baixar" },
+  "filename": { "message": "Nome do arquivo" },
+  "quality": { "message": "Qualidade" },
   "cancel": { "message": "Cancelar" },
   "copy_link": { "message": "Copiar link" },
   "copy_url": { "message": "Copiar URL" },

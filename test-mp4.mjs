@@ -18,6 +18,18 @@ const videoSegment = read("video-1.m4s");
 const audioSegment = read("audio-1.m4s");
 
 const view = (bytes) => new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+const makeBox = (type, ...payloads) => {
+  const bytes = new Uint8Array(8 + payloads.reduce((total, payload) => total + payload.length, 0));
+  const data = new DataView(bytes.buffer);
+  data.setUint32(0, bytes.length);
+  bytes.set([...type].map((character) => character.charCodeAt(0)), 4);
+  let at = 8;
+  for (const payload of payloads) {
+    bytes.set(payload, at);
+    at += payload.length;
+  }
+  return bytes;
+};
 const trackIdOf = (bytes, box) => view(bytes).getUint32(box.body + (bytes[box.body] === 1 ? 20 : 12));
 
 function traks(bytes) {
@@ -190,5 +202,26 @@ for (let index = 0; index < runs; index += 1) {
 }
 assert.equal(negative, 0, "version 0 offsets must all be non-negative");
 assert.ok(runs < samples, "runs of equal offsets must be collapsed, not one entry per sample");
+
+// A long B-frame stream has more composition offsets than JavaScript permits as
+// function arguments. Finalization must scan them instead of spreading them into
+// Math.min, which raised "Maximum call stack size exceeded" after reaching 90%.
+const sampleCount = 150000;
+const tfhdPayload = new Uint8Array(12);
+view(tfhdPayload).setUint32(0, 0x10);
+view(tfhdPayload).setUint32(4, readTrackId(bframesInit));
+const trunPayload = new Uint8Array(12 + sampleCount * 8);
+view(trunPayload).setUint32(0, 0x901);
+view(trunPayload).setUint32(4, sampleCount);
+for (let index = 0; index < sampleCount; index += 1) {
+  view(trunPayload).setUint32(12 + index * 8, 1);
+  view(trunPayload).setInt32(16 + index * 8, index % 2 ? 2 : -2);
+}
+const longVideo = createProgressiveMp4(bframesInit);
+longVideo.addFragment(
+  makeBox("moof", makeBox("traf", makeBox("tfhd", tfhdPayload), makeBox("trun", trunPayload))),
+  makeBox("mdat")
+);
+assert.doesNotThrow(() => longVideo.moov());
 
 console.log("MP4 track merge check passed");

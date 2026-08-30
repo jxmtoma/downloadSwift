@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "Guarda archivos de video directos y transmisiones HLS sin cifrar de forma local, con progreso, salida MP4 y sin seguimiento." },
+  "extension_description": { "message": "Guarda archivos de video directos y transmisiones HLS y DASH sin cifrar de forma local, con selección de calidad, salida MP4 y sin seguimiento." },
   "brand_subtitle": { "message": "Descargador de video privado" },
   "state_off": { "message": "Desactivado" },
   "state_active": { "message": "Activo" },
@@ -37,6 +37,8 @@
   "retry": { "message": "Reintentar" },
   "again": { "message": "Otra vez" },
   "download": { "message": "Descargar" },
+  "filename": { "message": "Nombre del archivo" },
+  "quality": { "message": "Calidad" },
   "cancel": { "message": "Cancelar" },
   "copy_link": { "message": "Copiar enlace" },
   "copy_url": { "message": "Copiar URL" },

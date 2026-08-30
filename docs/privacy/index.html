@@ -7,13 +7,13 @@
     <meta name="description" content="Privacy policy for the Video &amp; Media Downloader extension for Chrome, Microsoft Edge, Firefox, and Safari.">
     <link rel="canonical" href="https://jxmtoma.github.io/downloadSwift/privacy/">
     <link rel="stylesheet" href="../styles.css">
+    <script src="../site.js" defer></script>
   </head>
   <body>
     <header class="site-header">
       <a class="brand" href="../">Video &amp; Media Downloader</a>
       <nav aria-label="Main navigation">
-        <a aria-current="page" href="./">Privacy</a>
-        <a href="../support/">Support</a>
+        <a href="https://github.com/sponsors/jxmtoma">Donate</a>
       </nav>
     </header>
 
@@ -34,7 +34,7 @@
         <li><strong>Site access and webRequest:</strong> detect media requests on sites the user enables.</li>
         <li><strong>declarativeNetRequest:</strong> replay only the request context needed for a user-selected media URL.</li>
         <li><strong>downloads and downloads.open:</strong> save the prepared file and perform only the open or show action selected by the user in Chrome and Edge. Firefox saves and reveals the file but does not request <code>downloads.open</code>, which it permits only from a user action. Chrome and Edge also use <code>downloads.ui</code> to suppress duplicate browser download UI during the managed handoff. Safari requests none of these permissions and hands the prepared file to its native save flow.</li>
-        <li><strong>offscreen:</strong> prepare direct and HLS downloads without opening another tab in Chrome and Edge. Firefox and Safari perform the same work in a background page.</li>
+        <li><strong>offscreen:</strong> prepare direct, HLS, and DASH downloads without opening another tab in Chrome and Edge. Firefox and Safari perform the same work in a background page.</li>
         <li><strong>storage:</strong> keep detected items and download state for the browser session.</li>
         <li><strong>notifications:</strong> tell the user when a download finishes in Chrome, Edge, and Firefox. Safari does not request this permission.</li>
       </ul>

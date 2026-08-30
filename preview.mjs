@@ -4,6 +4,7 @@ import { isSecureMediaUrl } from "./media.mjs";
 // that fifty of them fit in session storage without thought.
 const PREVIEW_WIDTH = 160;
 const DECODE_TIMEOUT = 8000;
+const METADATA_TIMEOUT = 3000;
 
 const withTimeout = (promise, ms, label) => {
   let timer;
@@ -18,7 +19,7 @@ const withTimeout = (promise, ms, label) => {
 // Decoding needs a same-origin source or the canvas is tainted and cannot be
 // read back, so the bytes are fetched by the caller and handed over as a blob
 // rather than pointing the element at the remote URL.
-export async function firstFrameDataUrl(blob, createElement) {
+async function firstFrame(blob, createElement) {
   const url = URL.createObjectURL(blob);
   const video = createElement("video");
 
@@ -55,11 +56,36 @@ export async function firstFrameDataUrl(blob, createElement) {
     canvas.width = PREVIEW_WIDTH;
     canvas.height = Math.max(1, Math.round(PREVIEW_WIDTH * (height / width)));
     canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", 0.6);
+    return { dataUrl: canvas.toDataURL("image/jpeg", 0.6), height, width };
   } finally {
     video.removeAttribute("src");
     video.load?.();
     URL.revokeObjectURL(url);
+  }
+}
+
+export async function firstFrameDataUrl(blob, createElement) {
+  return (await firstFrame(blob, createElement)).dataUrl;
+}
+
+export async function videoDimensions(url, createElement) {
+  const video = createElement("video");
+  try {
+    video.preload = "metadata";
+    const ready = withTimeout(new Promise((resolve, reject) => {
+      video.addEventListener("loadedmetadata", resolve, { once: true });
+      video.addEventListener("error", () => reject(new Error("undecodable")), { once: true });
+    }), METADATA_TIMEOUT, "metadata timeout");
+    video.src = url;
+    video.load();
+    await ready;
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) throw new Error("no video track");
+    return { height, width };
+  } finally {
+    video.removeAttribute("src");
+    video.load?.();
   }
 }
 
@@ -71,7 +97,7 @@ export async function makePreview(item, { createElement, fetchBytes }) {
     if (!isSecureMediaUrl(item?.url)) return { ok: false };
     const blob = await fetchBytes(item.url);
     if (!blob) return { ok: false };
-    return { dataUrl: await firstFrameDataUrl(blob, createElement), ok: true };
+    return { ...await firstFrame(blob, createElement), ok: true };
   } catch {
     return { ok: false };
   }

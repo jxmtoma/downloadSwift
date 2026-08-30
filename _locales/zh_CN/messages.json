@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "在本地保存直接视频文件和未加密的 HLS 流，显示进度并输出 MP4，全程无跟踪。" },
+  "extension_description": { "message": "在本地保存直接视频文件和未加密的 HLS 与 DASH 流，支持画质选择、进度显示和 MP4 输出，全程无跟踪。" },
   "brand_subtitle": { "message": "私密视频保存工具" },
   "state_off": { "message": "已关闭" },
   "state_active": { "message": "已启用" },
@@ -37,6 +37,8 @@
   "retry": { "message": "重试" },
   "again": { "message": "再次下载" },
   "download": { "message": "下载" },
+  "filename": { "message": "文件名" },
+  "quality": { "message": "画质" },
   "cancel": { "message": "取消" },
   "copy_link": { "message": "复制链接" },
   "copy_url": { "message": "复制网址" },

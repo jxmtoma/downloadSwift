@@ -36,7 +36,7 @@ assert.ok(!firefox.permissions.includes("downloads.ui"));
 // notification click is not one, so requesting it asks for what it cannot use.
 assert.ok(!firefox.permissions.includes("downloads.open"));
 assert.ok(!firefox.permissions.includes("offscreen"));
-assert.equal(firefox.browser_specific_settings.gecko.strict_min_version, "142.0");
+assert.equal(firefox.browser_specific_settings.gecko.strict_min_version, "140.0");
 assert.deepEqual(
   firefox.browser_specific_settings.gecko.data_collection_permissions.required,
   ["websiteContent"]

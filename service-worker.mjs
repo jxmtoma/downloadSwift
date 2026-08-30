@@ -115,7 +115,7 @@ function recordMedia(details) {
         return directory.startsWith(other) || other.startsWith(directory);
       });
       const covered = related.some((item) => (
-        playlistDirectory(item.url).length < directory.length || isMasterHls(item)
+        playlistDirectory(item.url).length <= directory.length || isMasterHls(item)
       ));
       if (covered && !isMasterHls(media)) return;
       for (let index = items.length - 1; index >= 0; index -= 1) {
@@ -466,13 +466,13 @@ async function startDirectJob({ filename, job }) {
 // the fetch needs, then takes it back down.
 // ponytail: no preview for HLS or DASH; wire it to their first segment if the
 // format tile turns out not to be enough there.
-async function armPreview(item, hosts) {
+async function armPreview(item, hosts, force = false) {
   if (!isSecureMediaUrl(item?.url)) return { ok: false };
   const key = previewKey(item.url);
   const stored = await api.storage.session.get(key);
   // A widening pass for a stream's segment hosts arrives while the first rule is
   // still counted as in flight, so only the opening request checks for that.
-  if (stored[key] || (!hosts && previewsInFlight.has(item.url))) return { ok: false };
+  if ((!force && stored[key]) || (!hosts && previewsInFlight.has(item.url))) return { ok: false };
 
   previewsInFlight.add(item.url);
   try {
@@ -586,7 +586,9 @@ api.permissions.onAdded.addListener(registerMediaListeners);
 api.permissions.onRemoved.addListener(registerMediaListeners);
 
 api.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "loading") clearTab(tabId);
+  // A same-URL player reload can happen after its media request. Clearing on
+  // every loading event made the row flash into view and then disappear.
+  if (changeInfo.url) clearTab(tabId);
   // Some players never put a manifest on the wire, so there is nothing for the
   // request detector to see. Those pages are recognised by URL instead, and the
   // page itself becomes the item.
@@ -627,7 +629,7 @@ export async function handleServiceWorkerMessage(message) {
   }
 
   if (message.type === "arm-preview") {
-    return armPreview(message.item, message.hosts);
+    return armPreview(message.item, message.hosts, message.force);
   }
 
   if (message.type === "disarm-preview") {

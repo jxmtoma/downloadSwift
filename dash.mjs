@@ -52,8 +52,16 @@ export function carriesBothStreams(set) {
   });
 }
 
-const highestBandwidth = (representations) => [...representations]
-  .sort((left, right) => (right.bandwidth ?? 0) - (left.bandwidth ?? 0))[0];
+const highestBandwidth = (representations, selection) => {
+  const byId = selection?.representationId != null
+    ? representations.find(({ id }) => id === selection.representationId)
+    : null;
+  const byIndex = Number.isInteger(selection?.representationIndex)
+    ? representations[selection.representationIndex]
+    : null;
+  return byId ?? byIndex ?? [...representations]
+    .sort((left, right) => (right.bandwidth ?? 0) - (left.bandwidth ?? 0))[0];
+};
 
 // SegmentTemplate is what encoders emit; SegmentList and a plain BaseURL are the
 // older shapes and still turn up on self-hosted manifests.
@@ -110,16 +118,25 @@ export function representationSegments(representation, set, durationSeconds) {
 
 // The manifest object here is the plain shape readDashXml produces, so every
 // decision below stays testable without a DOM.
-export function selectDashMedia(manifest) {
+function videoSet(manifest) {
+  const sets = manifest.adaptationSets ?? [];
+  const videoSets = sets.filter((set) => adaptationKind(set) === "video");
+  return videoSets.find(carriesBothStreams) ?? videoSets[0];
+}
+
+export function selectDashVariants(manifest) {
+  return videoSet(manifest)?.representations ?? [];
+}
+
+export function selectDashMedia(manifest, selection) {
   const sets = manifest.adaptationSets ?? [];
   if (!sets.length) throw new Error(t("error_dash_no_streams"));
 
-  const videoSets = sets.filter((set) => adaptationKind(set) === "video");
   const audioSets = sets.filter((set) => adaptationKind(set) === "audio");
-  const chosen = videoSets.find(carriesBothStreams) ?? videoSets[0];
+  const chosen = videoSet(manifest);
   if (!chosen) throw new Error(t("error_dash_no_streams"));
 
-  const representation = highestBandwidth(chosen.representations);
+  const representation = highestBandwidth(chosen.representations, selection);
   if (!representation) throw new Error(t("error_dash_no_streams"));
 
   const { initUrl, segmentUrls } = representationSegments(
@@ -201,6 +218,7 @@ export function readDashXml(xmlText, baseUrl, DomParser) {
       representations: [...set.querySelectorAll(":scope > Representation")].map((representation) => {
         const ownBase = representation.querySelector(":scope > BaseURL")?.textContent?.trim();
         const ownResolve = (value) => new URL(value, ownBase ? new URL(ownBase, base).href : base).href;
+        const height = Number(attribute(representation, "height") ?? attribute(set, "height")) || 0;
         const list = [...representation.querySelectorAll("SegmentList > SegmentURL")]
           .map((entry) => ownResolve(attribute(entry, "media")));
 
@@ -208,6 +226,7 @@ export function readDashXml(xmlText, baseUrl, DomParser) {
           bandwidth: Number(attribute(representation, "bandwidth")) || 0,
           baseUrl: ownBase ? new URL(ownBase, base).href : undefined,
           codecs: attribute(representation, "codecs") ?? attribute(set, "codecs"),
+          ...height ? { height } : {},
           id: attribute(representation, "id"),
           initUrl: representation.querySelector("SegmentList > Initialization")
             ? ownResolve(attribute(representation.querySelector("SegmentList > Initialization"), "sourceURL"))
@@ -228,6 +247,6 @@ export function readDashXml(xmlText, baseUrl, DomParser) {
   };
 }
 
-export function parseDashMedia(xmlText, baseUrl, DomParser) {
-  return selectDashMedia(readDashXml(xmlText, baseUrl, DomParser));
+export function parseDashMedia(xmlText, baseUrl, DomParser, selection) {
+  return selectDashMedia(readDashXml(xmlText, baseUrl, DomParser), selection);
 }

@@ -17,6 +17,14 @@ assert.equal(detectMedia({
   url: "https://cdn.example/manifest"
 }).format, "DASH");
 assert.equal(detectMedia({
+  responseHeaders: header("text/plain"),
+  url: "https://cdn.example/hls/video-id/master.txt"
+}).format, "HLS");
+assert.equal(detectMedia({
+  responseHeaders: header("text/plain"),
+  url: "https://cdn.example/config/master.txt"
+}), null, "ordinary text files must not become media");
+assert.equal(detectMedia({
   responseHeaders: header("video/mp4"),
   type: "media",
   url: "https://cdn.example/signed?id=1"

@@ -93,13 +93,18 @@ export function detectMedia({ responseHeaders = [], url }) {
   if (SEGMENT_EXTENSIONS.has(extension)) return null;
 
   const mime = header(responseHeaders, "content-type").split(";", 1)[0].trim().toLowerCase();
+  // Some hosts disguise an HLS master as text/plain. Keep this deliberately
+  // narrow: treating arbitrary .txt responses as playlists floods the popup.
+  const textHlsMaster = extension === "txt"
+    && name.toLowerCase() === "master.txt"
+    && new URL(url).pathname.toLowerCase().includes("/hls/");
   // A 206 reports only the slice it returned, so a ranged request for a real
   // video looks tiny unless the total is read off content-range instead.
   const total = header(responseHeaders, "content-range").match(/\/\s*(\d+)\s*$/)?.[1];
   const rawSize = Number(total ?? header(responseHeaders, "content-length"));
   const size = Number.isSafeInteger(rawSize) && rawSize > 0 ? rawSize : null;
 
-  if (PLAYLIST_EXTENSIONS.has(extension) || PLAYLIST_MIMES.has(mime)) {
+  if (textHlsMaster || PLAYLIST_EXTENSIONS.has(extension) || PLAYLIST_MIMES.has(mime)) {
     const format = extension === "mpd" || mime === "application/dash+xml" ? "DASH" : "HLS";
     // The response here is the manifest, so its length is the size of a text
     // file listing segments, not of the video. Reporting it made a two-hour

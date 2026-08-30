@@ -39,8 +39,8 @@ Media requests go only to the website or media host selected by the user.
   from a user action. Chrome and Edge also use `downloads.ui` to suppress
   duplicate browser download UI during the managed handoff. Safari requests none
   of these permissions and hands the prepared file to its native save flow.
-- `offscreen`: prepare direct and HLS downloads without opening another tab in
-  Chrome and Edge. Firefox and Safari perform the same work in a background page.
+- `offscreen`: prepare direct, HLS, and DASH downloads without opening another tab
+  in Chrome and Edge. Firefox and Safari perform the same work in a background page.
 - `storage`: keep detected items and download state for the browser session.
 - `notifications`: tell the user when a download finishes in Chrome, Edge, and
   Firefox. Safari does not request this permission.

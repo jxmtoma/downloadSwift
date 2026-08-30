@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "직접 동영상 파일과 암호화되지 않은 HLS 스트림을 진행률, MP4 출력, 추적 없이 로컬에 저장합니다." },
+  "extension_description": { "message": "직접 동영상 파일과 암호화되지 않은 HLS 및 DASH 스트림을 화질 선택, 진행률, MP4 출력, 추적 없이 로컬에 저장합니다." },
   "brand_subtitle": { "message": "비공개 동영상 저장 도구" },
   "state_off": { "message": "꺼짐" },
   "state_active": { "message": "활성" },
@@ -37,6 +37,8 @@
   "retry": { "message": "다시 시도" },
   "again": { "message": "다시 다운로드" },
   "download": { "message": "다운로드" },
+  "filename": { "message": "파일 이름" },
+  "quality": { "message": "화질" },
   "cancel": { "message": "취소" },
   "copy_link": { "message": "링크 복사" },
   "copy_url": { "message": "URL 복사" },

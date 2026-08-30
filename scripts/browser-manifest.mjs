@@ -21,7 +21,7 @@ export function firefoxManifest(source) {
       gecko: {
         data_collection_permissions: { required: ["websiteContent"] },
         id: "downloadswift@jxmtoma.github.io",
-        strict_min_version: "142.0"
+        strict_min_version: "140.0"
       }
     }
   };

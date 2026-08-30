@@ -53,6 +53,8 @@
           format: "HLS",
           host: "cdn.example",
           preview: "preview-frame-b.jpg",
+          qualities: ["2160p · 18.0 Mbps", "1080p · 5.8 Mbps", "720p · 2.4 Mbps"],
+          qualitySelected: 2,
           size: "~412 MB",
           type: "playlist"
         },
@@ -129,6 +131,19 @@
 
         const actions = document.createElement("div");
         actions.className = "media-actions";
+
+        if (item.qualities) {
+          const quality = document.createElement("select");
+          quality.className = "quality-picker";
+          quality.setAttribute("aria-label", "Quality");
+          item.qualities.forEach((label) => {
+            const option = document.createElement("option");
+            option.textContent = label;
+            quality.append(option);
+          });
+          quality.selectedIndex = item.qualitySelected ?? 0;
+          actions.append(quality);
+        }
 
         const primary = document.createElement("button");
         primary.className = "primary";

@@ -6,6 +6,7 @@ const downloadListeners = [];
 const headersReceivedListeners = [];
 const permissionListeners = [];
 const tabRemovedListeners = [];
+const tabUpdatedListeners = [];
 const sessionRules = [];
 const sentMessages = [];
 const notifications = [];
@@ -69,7 +70,7 @@ globalThis.chrome = {
   },
   tabs: {
     onRemoved: { addListener: (listener) => tabRemovedListeners.push(listener) },
-    onUpdated: { addListener: () => {} }
+    onUpdated: { addListener: (listener) => tabUpdatedListeners.push(listener) }
   },
   webRequest: {
     onBeforeSendHeaders: { addListener: () => {}, removeListener: () => {} },
@@ -136,6 +137,26 @@ for (const url of [
 }
 assert.equal(stored["media:10"].length, 1);
 assert.equal(stored["media:10"][0].name, "master.m3u8");
+
+// Players fetch the master before its variants. When both use anonymous names
+// in the same directory, keep that first request so its quality list survives.
+for (const url of [
+  "https://cdn.example/anonymous/index.m3u8",
+  "https://cdn.example/anonymous/video.m3u8"
+]) {
+  headersReceivedListeners[0]({
+    requestId: `anonymous:${url}`,
+    responseHeaders: [],
+    statusCode: 200,
+    tabId: 14,
+    type: "xmlhttprequest",
+    url
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+assert.deepEqual(stored["media:14"].map((item) => item.url), [
+  "https://cdn.example/anonymous/index.m3u8"
+]);
 
 // Two embedded players are two streams: their directories do not nest, so each
 // keeps an entry, while a variant below a master still collapses into it.
@@ -214,6 +235,16 @@ assert.equal(stored["media:11"].length, 1);
 assert.deepEqual(stored["media:11"][0].requestHeaders, [
   { name: "referer", value: "https://video.example/" }
 ]);
+
+stored["media:15"] = [{ url: "https://cdn.example/kept.m3u8" }];
+tabUpdatedListeners[0](15, { status: "loading" }, { url: "https://video.example/embed" });
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(stored["media:15"].length, 1, "a same-URL player reload keeps detected media");
+tabUpdatedListeners[0](15, { status: "loading", url: "https://video.example/next" }, {
+  url: "https://video.example/next"
+});
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(stored["media:15"], undefined, "a real navigation clears the previous page's media");
 
 const job = {
   id: "direct",
@@ -461,6 +492,7 @@ const hlsPrepared = new Promise((resolve) => {
 });
 runtimeListeners[1]({
   job: {
+    filename: "Renamed clip.mp4",
     id: "offscreen-hls",
     item: { format: "HLS", kind: "playlist", url: "https://cdn.example/720p.m3u8" },
     pageTitle: "Page title",
@@ -469,7 +501,8 @@ runtimeListeners[1]({
   target: "offscreen",
   type: "start-hls"
 }, null, () => {});
-await hlsPrepared;
+const hlsReady = await hlsPrepared;
+assert.equal(hlsReady.filename, "Renamed clip.mp4");
 
 // The parsed playlist tells the worker which hosts the segments come from.
 assert.deepEqual(

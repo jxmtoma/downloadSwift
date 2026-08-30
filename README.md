@@ -5,6 +5,7 @@ macOS Safari that detects direct video files and HLS/DASH playlist URLs requeste
 over HTTPS by the current tab.
 
 [Product website](https://jxmtoma.github.io/downloadSwift/) ·
+[Firefox Add-on](https://addons.mozilla.org/addon/video-media-downloader/) ·
 [Privacy policy](https://jxmtoma.github.io/downloadSwift/privacy/) ·
 [Support](https://jxmtoma.github.io/downloadSwift/support/)
 
@@ -16,12 +17,12 @@ over HTTPS by the current tab.
 4. Open the extension and enable media detection.
 5. Play a video, then reopen the extension.
 
-## Load it in Firefox
+## Install it in Firefox
 
-1. Run `sh scripts/package.sh`.
-2. Open `about:debugging#/runtime/this-firefox`.
-3. Click **Load Temporary Add-on** and select `dist/firefox/manifest.json`.
-4. Open the extension, enable media detection, and play a video.
+Install the published add-on from [Mozilla Add-ons](https://addons.mozilla.org/addon/video-media-downloader/).
+For local development, run `sh scripts/package.sh`, open
+`about:debugging#/runtime/this-firefox`, and use **Load Temporary Add-on** with
+`dist/firefox/manifest.json`.
 
 ## Load it in Safari
 
@@ -44,13 +45,16 @@ Detection watches requests, and a request is only visible on a host the extensio
 holds permission for, while a video page nearly always serves its media from a
 different domain than the page itself.
 
-Direct video files can be downloaded. Unencrypted on-demand HLS (`.m3u8`)
-streams with combined audio and video are saved as MP4. Streams are assembled
+Direct video files can be downloaded. Unencrypted on-demand HLS (`.m3u8`) and
+DASH (`.mpd`) streams are saved as MP4, including HLS playlists with separate
+fMP4 audio tracks. When a master playlist or DASH manifest exposes multiple
+video variants, the popup lets you choose the quality before downloading.
+Streams are assembled
 into a progressive MP4, with the samples described once in the header rather
 than ahead of each fragment: macOS reads no fragmented MP4 from disk, so that
 layout played broken in every browser there while working on Windows. MPEG-TS streams using
 H.264/AAC are transmuxed without re-encoding and finalized with a seekable
-timeline. Direct and HLS downloads use the extension's progress UI and hand the
+timeline. Direct, HLS, and DASH downloads use the extension's progress UI and hand the
 completed file to the browser's save flow. Active progress is visible from the
 popup on any tab, downloads continue after their source tab closes, and Chrome and
 Edge send a notification with actions to open each saved file or show it in its
@@ -81,7 +85,7 @@ URL on the wire at all: bilibili asks a private JSON endpoint and hands the
 result straight to the player, so nothing is observable. Those pages are
 recognised by URL instead, and only once the user has granted access to the site.
 The streams are resolved when the download starts, using the browser's existing
-session, so the quality offered is whatever that account is entitled to. Each
+session, so the available quality is whatever that account is entitled to. Each
 track is a separate whole file there, streamed and merged rather than buffered.
 
 Media URLs are stored only in the browser's in-memory session storage and are never
@@ -124,13 +128,14 @@ is no dependency installation step and no network access is needed.
 
 3. The Firefox package is written to `dist/downloadswift-firefox-<version>.zip`,
    where `<version>` is the `version` field of `manifest.json`. The script also
-   writes the Chrome/Edge and Safari packages and prints each path.
+   writes the Chrome/Edge, Safari, and source packages and prints each path. Use
+   `dist/downloadswift-source-<version>.zip` for the AMO source-code upload.
 
 What the script does: copies the shared source files, generates the Firefox
 manifest from `manifest.json` with `scripts/browser-manifest.mjs` (which swaps
 the service worker for a background page, removes the permissions Firefox cannot
-use, and adds `browser_specific_settings`), then zips the result and verifies the
-archive.
+use, and adds `browser_specific_settings`), then creates and verifies each
+browser package plus a source archive from the current non-ignored source tree.
 
 **Comparing against the submitted package.** Two builds of the same source
 produce byte-identical *contents* but different ZIP bytes, because zip records
@@ -164,9 +169,11 @@ back to English.
 ## Current scope
 
 - Direct HTTPS MP4, WebM, MOV, and M4V files
-- Unencrypted on-demand HTTPS HLS download as MP4
+- Unencrypted on-demand HTTPS HLS download as MP4, including separate fMP4 audio
+  tracks
 - On-demand DASH download as MP4, including manifests that keep audio and video
   in separate adaptation sets
+- HLS and DASH quality selection when a manifest exposes multiple variants
 - Bilibili video pages, whose player exposes no manifest URL to detect
 - Detected videos show a frame from the media itself, taken from the file or
   from a stream's first segment, so an ad stub sharing the same MP4 mime type is

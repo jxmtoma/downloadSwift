@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "直接動画ファイルと暗号化されていない HLS ストリームを、進行状況表示、MP4 出力、トラッキングなしでローカルに保存します。" },
+  "extension_description": { "message": "直接動画ファイルと暗号化されていない HLS および DASH ストリームを、画質選択、進行状況表示、MP4 出力、トラッキングなしでローカルに保存します。" },
   "brand_subtitle": { "message": "プライベート動画保存" },
   "state_off": { "message": "オフ" },
   "state_active": { "message": "有効" },
@@ -37,6 +37,8 @@
   "retry": { "message": "再試行" },
   "again": { "message": "もう一度" },
   "download": { "message": "ダウンロード" },
+  "filename": { "message": "ファイル名" },
+  "quality": { "message": "画質" },
   "cancel": { "message": "キャンセル" },
   "copy_link": { "message": "リンクをコピー" },
   "copy_url": { "message": "URL をコピー" },

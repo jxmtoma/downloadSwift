@@ -54,7 +54,19 @@ function stream(representation) {
 const best = (list) => [...list ?? []]
   .sort((left, right) => (right.bandwidth ?? 0) - (left.bandwidth ?? 0))[0];
 
-async function resolveBilibili(item, fetchJson) {
+const selected = (list, item) => {
+  const byIndex = Number.isInteger(item.representationIndex)
+    ? list[item.representationIndex]
+    : null;
+  if (byIndex && (item.representationId == null
+    || String(byIndex.id) === String(item.representationId))) return byIndex;
+  const byId = item.representationId != null
+    ? list.find((representation) => String(representation.id) === String(item.representationId))
+    : null;
+  return byId ?? byIndex ?? best(list);
+};
+
+async function loadBilibili(item, fetchJson) {
   const key = BILIBILI_PAGE.exec(item.url)?.[1];
   if (!key) throw new Error(t("error_site_unresolved"));
 
@@ -70,18 +82,30 @@ async function resolveBilibili(item, fetchJson) {
   // which this cannot tell apart from a DRM-restricted refusal.
   if (!dash) throw new Error(t("error_site_unresolved"));
 
-  const video = stream(best(dash.video));
+  return { dash, pages, play };
+}
+
+async function resolveBilibili(item, fetchJson) {
+  const { dash, pages, play } = await loadBilibili(item, fetchJson);
+
+  const videoRepresentation = selected(dash.video, item);
+  const video = stream(videoRepresentation);
   const audio = stream(best(dash.audio));
   if (!video) throw new Error(t("error_dash_no_streams"));
 
   return {
     audio,
-    bitsPerSecond: (best(dash.video)?.bandwidth ?? 0) + (best(dash.audio)?.bandwidth ?? 0),
+    bitsPerSecond: (videoRepresentation?.bandwidth ?? 0) + (best(dash.audio)?.bandwidth ?? 0),
     durationSeconds: Number(dash.duration) || Number(play.data.timelength) / 1000 || 0,
     extension: "mp4",
     title: pages.data[0].part || key,
     video
   };
+}
+
+export async function resolveSiteVariants(item, fetchJson) {
+  if (item.adapter !== "bilibili") throw new Error(t("error_site_unresolved"));
+  return (await loadBilibili(item, fetchJson)).dash.video ?? [];
 }
 
 // Always a promise, including on the unknown-adapter path: every caller awaits

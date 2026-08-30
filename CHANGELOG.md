@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.0 — 2026-08-29
+
+- Let users choose an available HLS or DASH video quality before downloading,
+  preserve that choice across refreshed manifests, and lock it once downloading
+  starts.
+- Show the current resolution for single-quality streams and direct MP4, WebM,
+  MOV, and M4V files. Read direct-file metadata before the thumbnail, reuse
+  manifest responses, and process each row progressively so details appear sooner.
+- Let users edit the output filename before downloading while preserving the
+  file's real container extension.
+- Merge separate fMP4 audio playlists from HLS masters into the downloaded MP4.
+- Detect HLS masters disguised as `/hls/.../master.txt`, retain anonymous masters
+  when their variants share a directory, and keep detected media through same-URL
+  player reloads.
+- Finalize long B-frame videos without overflowing JavaScript's argument stack.
+- Support Firefox ESR 140, including the remaining supported 32-bit Linux builds.
+
 ## 0.4.0 — 2026-08-04
 
 - Reveal a finished file in Firefox Downloads when its completion notification is

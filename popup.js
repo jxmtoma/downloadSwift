@@ -1,8 +1,10 @@
 import { downloadFilename } from "./media.mjs";
 import { formatTimeUntil, localizeDocument, t } from "./i18n.mjs";
-import { createTsTransmuxer } from "./hls.mjs";
+import { createTsTransmuxer, parseHlsVariants } from "./hls.mjs";
+import { readDashXml, selectDashVariants } from "./dash.mjs";
 import { getMedia } from "./resolve.mjs";
-import { makePreview } from "./preview.mjs";
+import { resolveSiteVariants } from "./sites.mjs";
+import { makePreview, videoDimensions } from "./preview.mjs";
 
 const api = globalThis.browser ?? globalThis.chrome;
 
@@ -39,6 +41,11 @@ let currentTabOrigin = "";
 let pollTimer;
 let selectedView = "detected";
 const requestedPreviews = new Set();
+const qualityCache = new Map();
+const qualityRequests = new Map();
+const qualitySelections = new Map();
+const filenameEdits = new Map();
+const resourceTextCache = new Map();
 
 const storageKey = () => `media:${currentTabId}`;
 
@@ -106,13 +113,18 @@ async function copyUrl(item, button) {
   }
 }
 
-async function startDownload(item, pageTitle = currentTabTitle) {
+async function startDownload(item, pageTitle = currentTabTitle, selection, editedFilename) {
   const jobId = crypto.randomUUID();
   const key = `download-job:${jobId}`;
+  const filename = downloadFilename(
+    editedFilename?.trim() || pageTitle,
+    item.kind === "file" ? item : { format: "MP4", name: "video.mp4" }
+  );
   const job = {
     createdAt: Date.now(),
+    filename,
     id: jobId,
-    item,
+    item: selection ? { ...item, ...selection } : item,
     pageTitle,
     progress: 0,
     state: "queued",
@@ -128,7 +140,7 @@ async function startDownload(item, pageTitle = currentTabTitle) {
     target: "service-worker",
     type: item.kind === "file" ? "start-direct" : "start-hls"
   };
-  if (item.kind === "file") message.filename = downloadFilename(pageTitle, item);
+  if (item.kind === "file") message.filename = filename;
 
   // Not awaited, and no browser detection either. Firefox and Safari answer only
   // once the whole job has finished, Chrome answers immediately, and both write
@@ -174,7 +186,8 @@ async function cancelDownload(job) {
 // DOM at all, and an offscreen document is never rendered, which is exactly the
 // case a <video> element is not obliged to decode for. The popup is a real
 // rendered document, and it is open precisely when previews are worth having.
-const armPreview = (item, hosts) => api.runtime.sendMessage({
+const armPreview = (item, hosts, force = false) => api.runtime.sendMessage({
+  force,
   hosts,
   item,
   target: "service-worker",
@@ -208,6 +221,100 @@ const readRange = async (url, headers) => {
 };
 
 const readBytes = async (url, headers) => (await readRange(url, headers)).bytes;
+const readText = async (url) => {
+  if (resourceTextCache.has(url)) return resourceTextCache.get(url);
+  const value = new TextDecoder().decode(await readBytes(url));
+  resourceTextCache.set(url, value);
+  return value;
+};
+const readJson = async (url) => JSON.parse(await readText(url));
+
+function qualityLabel(variant) {
+  const height = variant.height || Number(/x(\d+)/.exec(variant.resolution ?? "")?.[1]);
+  const resolution = variant.width && height ? `${variant.width}×${height}` : height ? `${height}p` : "";
+  const bandwidth = variant.bandwidth >= 1e6
+    ? `${(variant.bandwidth / 1e6).toFixed(1)} Mbps`
+    : variant.bandwidth ? `${Math.round(variant.bandwidth / 1000)} kbps` : "";
+  return [resolution, bandwidth].filter(Boolean).join(" · ") || t("quality");
+}
+
+function addQualityPicker(item, qualities, actions, disabled = false) {
+  const picker = document.createElement("select");
+  picker.className = "quality-picker";
+  picker.disabled = disabled;
+  picker.setAttribute("aria-label", t("quality"));
+  qualities.forEach((quality, index) => {
+    const option = document.createElement("option");
+    option.textContent = qualityLabel(quality);
+    option.value = String(index);
+    picker.append(option);
+  });
+  picker.value = qualitySelections.get(item.url) ?? "0";
+  picker.addEventListener("change", () => qualitySelections.set(item.url, picker.value));
+  actions.append(picker);
+  return picker;
+}
+
+async function streamQualities(item) {
+  const armed = await armPreview(item, undefined, true);
+  if (!armed?.ok) return [];
+
+  try {
+    if (item.adapter) {
+      return (await resolveSiteVariants(item, readJson))
+        .map((variant, index) => ({
+          bandwidth: Number(variant.bandwidth) || 0,
+          height: Number(variant.height) || undefined,
+          index,
+          selection: {
+            representationId: variant.id,
+            representationIndex: index
+          }
+        }))
+        .sort((left, right) => right.bandwidth - left.bandwidth);
+    }
+
+    const text = await readText(item.url);
+    if (item.format === "HLS") {
+      return parseHlsVariants(text, item.url)
+        .map((variant) => ({
+          ...variant,
+          selection: { variantIndex: variant.index, variantUrl: variant.url }
+        }))
+        .sort((left, right) => right.bandwidth - left.bandwidth);
+    }
+
+    const manifest = readDashXml(text, item.url, DOMParser);
+    return selectDashVariants(manifest)
+      .map((variant, index) => ({
+        ...variant,
+        index,
+        selection: {
+          representationId: variant.id,
+          representationIndex: index
+        }
+      }))
+      .sort((left, right) => right.bandwidth - left.bandwidth);
+  } finally {
+    await disarmPreview(item, armed.ruleId);
+  }
+}
+
+function loadQualities(item) {
+  if (qualityCache.has(item.url)) return Promise.resolve(qualityCache.get(item.url));
+  if (qualityRequests.has(item.url)) return qualityRequests.get(item.url);
+
+  const request = previewQueue
+    .then(() => streamQualities(item))
+    .then((qualities) => {
+      qualityCache.set(item.url, qualities);
+      return qualities;
+    })
+    .finally(() => qualityRequests.delete(item.url));
+  qualityRequests.set(item.url, request);
+  previewQueue = request.catch(() => {});
+  return request;
+}
 
 const storeSize = async (item, bytes, exact) => {
   if (!(bytes > 0)) return;
@@ -220,8 +327,8 @@ const storeSize = async (item, bytes, exact) => {
 // so the replay rule is armed once for each.
 async function streamPreviewBlob(item) {
   const media = await getMedia(item, {
-    fetchJson: async (url) => JSON.parse(new TextDecoder().decode(await readBytes(url))),
-    fetchText: async (url) => new TextDecoder().decode(await readBytes(url))
+    fetchJson: readJson,
+    fetchText: readText
   });
 
   const first = media.video ?? { url: media.segmentUrls[0] };
@@ -272,20 +379,41 @@ async function streamPreviewBlob(item) {
 }
 
 async function fetchPreview(item) {
-  const armed = await armPreview(item);
+  let preview = {};
+  if (item.kind === "file") {
+    const metadataRule = await armPreview(item, [new URL(item.url).hostname], true);
+    try {
+      if (metadataRule?.ok) {
+        preview = await videoDimensions(item.url, (tag) => document.createElement(tag));
+        await api.storage.session.set({ [`preview:${item.url}`]: preview });
+      }
+    } catch {
+      // A thumbnail can still decode from the capped byte slice below.
+    } finally {
+      if (metadataRule?.ok) await disarmPreview(item, metadataRule.ruleId);
+    }
+  }
+
+  const armed = await armPreview(item, undefined, true);
   if (!armed?.ok) return;
 
   try {
     const blob = item.kind === "file"
       ? new Blob([await readBytes(item.url)], { type: item.mime || "video/mp4" })
       : await streamPreviewBlob(item);
-    const { dataUrl } = await makePreview(item, {
-      createElement: (tag) => document.createElement(tag),
-      fetchBytes: async () => blob
-    });
-    if (dataUrl) await api.storage.session.set({ [`preview:${item.url}`]: dataUrl });
+    preview = {
+      ...preview,
+      ...await makePreview(item, {
+        createElement: (tag) => document.createElement(tag),
+        fetchBytes: async () => blob
+      })
+    };
   } finally {
     await disarmPreview(item, armed.ruleId);
+  }
+
+  if (preview?.dataUrl || preview?.height) {
+    await api.storage.session.set({ [`preview:${item.url}`]: preview });
   }
 }
 
@@ -294,9 +422,16 @@ async function fetchPreview(item) {
 let previewQueue = Promise.resolve();
 function requestPreviews(items, previews) {
   for (const item of items) {
-    if (previews.has(item.url) || requestedPreviews.has(item.url)) continue;
+    if (previews.get(item.url)?.height || requestedPreviews.has(item.url)) continue;
     requestedPreviews.add(item.url);
     previewQueue = previewQueue.then(() => fetchPreview(item).catch(() => {}));
+  }
+}
+
+function requestQualities(items) {
+  for (const item of items) {
+    if (item.kind === "file" || qualityCache.has(item.url) || qualityRequests.has(item.url)) continue;
+    loadQualities(item).then(() => render()).catch(() => {});
   }
 }
 
@@ -327,10 +462,11 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
     const format = document.createElement("div");
     format.className = `format-tile ${item.kind}`;
     const preview = previews.get(item.url);
-    if (preview) {
+    const previewUrl = typeof preview === "string" ? preview : preview?.dataUrl;
+    if (previewUrl) {
       const thumbnail = document.createElement("img");
       thumbnail.alt = "";
-      thumbnail.src = preview;
+      thumbnail.src = previewUrl;
       format.classList.add("has-preview");
       format.append(thumbnail);
     } else {
@@ -340,10 +476,18 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
     const details = document.createElement("div");
     details.className = "media-details";
 
-    const name = document.createElement("div");
-    name.className = "media-name";
-    name.textContent = visibleFilename(item, job);
-    name.title = name.textContent;
+    const editableName = selectedView === "detected" && !jobActive;
+    const name = document.createElement(editableName ? "input" : "div");
+    name.className = editableName ? "media-name media-name-input" : "media-name";
+    if (editableName) {
+      name.type = "text";
+      name.value = filenameEdits.get(item.url) ?? visibleFilename(item, job);
+      name.setAttribute("aria-label", t("filename"));
+      name.addEventListener("input", () => filenameEdits.set(item.url, name.value));
+    } else {
+      name.textContent = visibleFilename(item, job);
+      name.title = name.textContent;
+    }
 
     const meta = document.createElement("div");
     meta.className = "media-meta";
@@ -383,6 +527,15 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
     const actions = document.createElement("div");
     actions.className = "media-actions";
 
+    let qualities = qualityCache.get(item.url);
+    if (qualities?.length === 1 && preview?.height
+      && !qualities[0].height && !qualities[0].resolution) {
+      qualities = [{ ...qualities[0], height: preview.height, width: preview.width }];
+    }
+    if (!qualities?.length && preview?.height) {
+      qualities = [{ height: preview.height, width: preview.width }];
+    }
+    let qualityPicker;
     if (job?.state === "ready") {
       const save = document.createElement("button");
       save.className = "primary";
@@ -409,14 +562,32 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
           : job?.state === "complete" ? t("again") : t("download");
       download.addEventListener("click", async () => {
         download.disabled = true;
+        if (qualityPicker) qualityPicker.disabled = true;
         try {
-          await startDownload(item, job?.pageTitle);
+          if (item.kind !== "file" && qualities === undefined) {
+            qualities = await loadQualities(item);
+            if (qualities.length > 1) {
+              qualityPicker = addQualityPicker(item, qualities, actions);
+              download.disabled = false;
+              return;
+            }
+          }
+          await startDownload(
+            item,
+            job?.pageTitle,
+            qualities?.[qualityPicker?.selectedIndex ?? 0]?.selection,
+            name.value
+          );
           await selectView("downloading");
         } catch (error) {
           setError(error);
           download.disabled = false;
+          if (qualityPicker) qualityPicker.disabled = false;
         }
       });
+      if (qualities?.length) {
+        qualityPicker = addQualityPicker(item, qualities, actions, jobActive);
+      }
       actions.append(download);
     }
 
@@ -553,7 +724,12 @@ async function render() {
     .map(([key, value]) => [key.slice(prefix.length), value]));
   const previews = entries("preview:");
   renderItems(selectedView === "detected" ? detectedItems : [], jobs, previews, entries("estimate:"));
-  if (selectedView === "detected") requestPreviews(detectedItems, previews);
+  if (selectedView === "detected") {
+    for (const item of detectedItems) {
+      requestQualities([item]);
+      requestPreviews([item], previews);
+    }
+  }
 
   clearTimeout(pollTimer);
   if (jobs.some((job) => job.downloadId != null && job.state === "downloading")) {

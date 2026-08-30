@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { firstFrameDataUrl, makePreview } from "./preview.mjs";
+import { firstFrameDataUrl, makePreview, videoDimensions } from "./preview.mjs";
 
 let drawn = null;
 let seekedTo = null;
@@ -11,7 +11,7 @@ const videoElement = (overrides = {}) => ({
   videoHeight: 720,
   videoWidth: 1280,
   addEventListener(type, handler) {
-    if (type === "loadeddata" || type === "seeked") queueMicrotask(handler);
+    if (type === "loadeddata" || type === "loadedmetadata" || type === "seeked") queueMicrotask(handler);
   },
   load() {},
   removeAttribute() {},
@@ -41,6 +41,10 @@ assert.equal(dataUrl, "data:image/jpeg;base64,FRAME");
 assert.equal(seekedTo, 1);
 // 160 wide, and the source aspect ratio preserved rather than assumed 16:9.
 assert.deepEqual(drawn, { height: 90, width: 160 });
+assert.deepEqual(
+  await videoDimensions("https://cdn.example/video.mp4", createElement(videoElement())),
+  { height: 720, width: 1280 }
+);
 
 // A portrait clip keeps its shape.
 drawn = null;
@@ -78,12 +82,12 @@ assert.deepEqual(
   }),
   { ok: false }
 );
-assert.equal(
-  (await makePreview({ url: "https://cdn.example/a.mp4" }, {
+assert.deepEqual(
+  await makePreview({ url: "https://cdn.example/a.mp4" }, {
     createElement: createElement(videoElement()),
     fetchBytes: async () => blob
-  })).dataUrl,
-  "data:image/jpeg;base64,FRAME"
+  }),
+  { dataUrl: "data:image/jpeg;base64,FRAME", height: 720, ok: true, width: 1280 }
 );
 
 console.log("preview frame check passed");

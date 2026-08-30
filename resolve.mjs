@@ -1,5 +1,6 @@
 import { parseDashMedia } from "./dash.mjs";
 import { parseHlsMedia, selectHlsVariant } from "./hls.mjs";
+import { t } from "./i18n.mjs";
 import { resolveSite } from "./sites.mjs";
 
 // Turning an item into concrete stream URLs is needed in two places now: the
@@ -12,9 +13,22 @@ export async function getMedia(item, { domParser = globalThis.DOMParser, fetchJs
   }
 
   const firstText = await fetchText(item.url);
-  if (item.format === "DASH") return parseDashMedia(firstText, item.url, domParser);
+  if (item.format === "DASH") {
+    return parseDashMedia(firstText, item.url, domParser, {
+      representationId: item.representationId,
+      representationIndex: item.representationIndex
+    });
+  }
 
-  const selected = selectHlsVariant(firstText, item.url);
+  const selected = selectHlsVariant(firstText, item.url, item.variantUrl, item.variantIndex);
   const playlistText = selected.url === item.url ? firstText : await fetchText(selected.url);
-  return { bitsPerSecond: selected.bandwidth ?? 0, ...parseHlsMedia(playlistText, selected.url) };
+  const media = parseHlsMedia(playlistText, selected.url);
+  if (selected.audioUrl) {
+    const audio = parseHlsMedia(await fetchText(selected.audioUrl), selected.audioUrl);
+    if (media.extension === "ts" || audio.extension === "ts") {
+      throw new Error(t("error_separate_audio"));
+    }
+    media.audio = audio;
+  }
+  return { bitsPerSecond: selected.bandwidth ?? 0, ...media };
 }

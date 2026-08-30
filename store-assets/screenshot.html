@@ -129,9 +129,9 @@
       const copy = {
         detected: {
           eyebrow: "Private video saver",
-          features: ["Direct video + HLS", "Frame previews", "Seekable MP4 output"],
+          features: ["HLS + DASH quality", "Separate audio merged", "Seekable MP4 output"],
           headline: "Detect. Download. Done.",
-          lead: "Every detected item shows a frame from the media itself, so you know what you are saving before you save it.",
+          lead: "Pick the quality you want, including a practical 720p stream instead of the largest version, and merge separate audio tracks into one MP4.",
           popup: "detected"
         },
         downloading: {
@@ -155,13 +155,16 @@
       const view = new URLSearchParams(location.search).get("view") || "detected";
       const active = copy[view] ?? copy.detected;
       const frame = document.querySelector("#popup");
-      // The popup builds its rows from a module script, so the height is only
-      // final after that has run — hence rAF rather than reading it on load.
+      // The popup builds its rows from an async module script, so iframe load can
+      // happen before its list exists. Wait for content before sizing the frame.
       frame.addEventListener("load", () => {
-        requestAnimationFrame(() => {
-          frame.style.height = `${frame.contentDocument.body.scrollHeight}px`;
+        const size = () => {
+          const height = frame.contentDocument?.body.scrollHeight || 0;
+          if (height < 100) return setTimeout(size, 50);
+          frame.style.height = `${height}px`;
           document.body.dataset.ready = "true";
-        });
+        };
+        size();
       });
       frame.src = `popup-preview.html?view=${active.popup}`;
       document.querySelector("#eyebrow").textContent = active.eyebrow;

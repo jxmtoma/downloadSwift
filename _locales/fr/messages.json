@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "Enregistrez localement des vidéos directes et des flux HLS non chiffrés, avec progression, sortie MP4 et sans suivi." },
+  "extension_description": { "message": "Enregistrez localement des vidéos directes et des flux HLS et DASH non chiffrés, avec sélection de la qualité, sortie MP4 et sans suivi." },
   "brand_subtitle": { "message": "Enregistreur vidéo privé" },
   "state_off": { "message": "Désactivé" },
   "state_active": { "message": "Actif" },
@@ -37,6 +37,8 @@
   "retry": { "message": "Réessayer" },
   "again": { "message": "À nouveau" },
   "download": { "message": "Télécharger" },
+  "filename": { "message": "Nom du fichier" },
+  "quality": { "message": "Qualité" },
   "cancel": { "message": "Annuler" },
   "copy_link": { "message": "Copier le lien" },
   "copy_url": { "message": "Copier l'URL" },

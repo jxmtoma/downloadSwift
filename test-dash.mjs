@@ -5,7 +5,8 @@ import {
   expandTemplate,
   parseIsoDuration,
   representationSegments,
-  selectDashMedia
+  selectDashMedia,
+  selectDashVariants
 } from "./dash.mjs";
 
 assert.equal(expandTemplate("seg-$Number$.m4s", { Number: 7 }), "seg-7.m4s");
@@ -98,6 +99,40 @@ assert.equal(muxed.initUrl, "https://cdn.example/hi/init.mp4");
 assert.equal(muxed.segmentUrls.length, 2);
 assert.equal(muxed.extension, "mp4");
 assert.equal(muxed.durationSeconds, 8);
+assert.deepEqual(selectDashVariants({
+  adaptationSets: [{
+    contentType: "video",
+    representations: [
+      { bandwidth: 400000, id: "lo" },
+      { bandwidth: 900000, id: "hi" }
+    ]
+  }]
+}), [
+  { bandwidth: 400000, id: "lo" },
+  { bandwidth: 900000, id: "hi" }
+]);
+const chosenLow = selectDashMedia({
+  adaptationSets: [{
+    contentType: "video",
+    representations: [
+      { bandwidth: 400000, codecs: "avc1.64001f,mp4a.40.2", id: "lo", segmentTemplate: template("lo") },
+      { bandwidth: 900000, codecs: "avc1.64001f,mp4a.40.2", id: "hi", segmentTemplate: template("hi") }
+    ]
+  }],
+  durationSeconds: 8
+}, { representationId: "lo" });
+assert.equal(chosenLow.initUrl, "https://cdn.example/lo/init.mp4");
+const chosenByIndex = selectDashMedia({
+  adaptationSets: [{
+    contentType: "video",
+    representations: [
+      { bandwidth: 400000, codecs: "avc1.64001f,mp4a.40.2", id: "lo", segmentTemplate: template("lo") },
+      { bandwidth: 900000, codecs: "avc1.64001f,mp4a.40.2", id: "hi", segmentTemplate: template("hi") }
+    ]
+  }],
+  durationSeconds: 8
+}, { representationId: "expired", representationIndex: 0 });
+assert.equal(chosenByIndex.initUrl, "https://cdn.example/lo/init.mp4");
 
 // The common shape: audio in its own adaptation set. Both streams come back so
 // the download can merge them into one movie.

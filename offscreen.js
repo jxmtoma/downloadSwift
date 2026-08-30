@@ -465,7 +465,7 @@ async function runHlsJob(job) {
       liveTempNames.delete(stagingName);
       staging = null;
     }
-    const filename = downloadFilename(
+    const filename = job.filename || downloadFilename(
       media.title || job.pageTitle,
       { format: "MP4", name: "video.mp4" }
     );

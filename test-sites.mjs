@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { detectSite, resolveSite } from "./sites.mjs";
+import { detectSite, resolveSite, resolveSiteVariants } from "./sites.mjs";
 import { createBoxSplitter } from "./mp4.mjs";
 
 // Only a video page is an item. The home page, a user page, or a lookalike host
@@ -35,8 +35,8 @@ const answers = {
         ],
         duration: 192,
         video: [
-          { SegmentBase: { Initialization: "0-934", indexRange: "935-1454" }, bandwidth: 357954, baseUrl: "https://cdn.example/v-low.m4s" },
-          { SegmentBase: { Initialization: "0-999", indexRange: "1000-1500" }, bandwidth: 1200000, baseUrl: "https://cdn.example/v-high.m4s" }
+          { SegmentBase: { Initialization: "0-934", indexRange: "935-1454" }, bandwidth: 357954, baseUrl: "https://cdn.example/v-low.m4s", id: 80 },
+          { SegmentBase: { Initialization: "0-999", indexRange: "1000-1500" }, bandwidth: 1200000, baseUrl: "https://cdn.example/v-high.m4s", id: 80 }
         ]
       },
       timelength: 191744
@@ -51,6 +51,7 @@ const fetchJson = async (url) => {
 };
 
 const media = await resolveSite(detected.item, fetchJson);
+const variants = await resolveSiteVariants(detected.item, fetchJson);
 
 // The cid has to be looked up first; playurl cannot be asked without it.
 assert.match(requested[0], /pagelist\?bvid=BV12rM96pE6t$/);
@@ -62,15 +63,28 @@ assert.equal(media.extension, "mp4");
 // Highest bandwidth wins for both tracks.
 assert.equal(media.video.url, "https://cdn.example/v-high.m4s");
 assert.equal(media.audio.url, "https://cdn.example/a-high.m4s");
+assert.deepEqual(variants.map(({ bandwidth }) => bandwidth), [357954, 1200000]);
 // The header is the Initialization range; the media is everything past the index.
 assert.equal(media.video.initRange, "bytes=0-999");
 assert.equal(media.video.mediaRange, "bytes=1501-");
 assert.equal(media.audio.initRange, "bytes=0-900");
 assert.equal(media.audio.mediaRange, "bytes=1401-");
 
+const selectedMedia = await resolveSite({
+  ...detected.item,
+  representationIndex: 0
+}, fetchJson);
+assert.equal(selectedMedia.video.url, "https://cdn.example/v-low.m4s");
+const selectedDuplicateId = await resolveSite({
+  ...detected.item,
+  representationId: 80,
+  representationIndex: 1
+}, fetchJson);
+assert.equal(selectedDuplicateId.video.url, "https://cdn.example/v-high.m4s");
+
 // An av-numbered page uses the other identifier.
 await resolveSite(detectSite("https://www.bilibili.com/video/av170001").item, fetchJson);
-assert.match(requested[2], /pagelist\?aid=170001$/);
+assert.ok(requested.some((url) => /pagelist\?aid=170001$/.test(url)));
 
 // A response with no DASH payload is a refusal, not something to half-download.
 await assert.rejects(

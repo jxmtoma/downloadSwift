@@ -378,6 +378,30 @@ ul {
   white-space: nowrap;
 }
 
+.media-name-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-family: inherit;
+  padding: 1px 3px;
+  width: 100%;
+}
+
+.media-name-input:hover {
+  border-color: var(--border);
+}
+
+.media-name-input:focus {
+  background: var(--panel);
+  border-color: var(--accent);
+  outline: none;
+}
+
+.media-name-input:focus-visible {
+  outline: 3px solid rgb(79 70 229 / 28%);
+  outline-offset: 1px;
+}
+
 .media-meta {
   color: var(--muted);
   flex-wrap: wrap;
@@ -409,6 +433,22 @@ ul {
 
 .media-actions .primary {
   min-width: 82px;
+}
+
+.quality-picker {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  max-width: 112px;
+  min-height: 30px;
+  padding: 3px 5px;
+}
+
+.quality-picker:disabled {
+  opacity: 0.6;
 }
 
 .copy-button {

@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "Direkte Videodateien und unverschlüsselte HLS-Streams lokal speichern – mit Fortschritt, MP4-Ausgabe und ohne Tracking." },
+  "extension_description": { "message": "Direkte Videodateien und unverschlüsselte HLS- und DASH-Streams lokal speichern – mit Qualitätsauswahl, Fortschritt, MP4-Ausgabe und ohne Tracking." },
   "brand_subtitle": { "message": "Privater Video-Downloader" },
   "state_off": { "message": "Aus" },
   "state_active": { "message": "Aktiv" },
@@ -37,6 +37,8 @@
   "retry": { "message": "Wiederholen" },
   "again": { "message": "Erneut" },
   "download": { "message": "Herunterladen" },
+  "filename": { "message": "Dateiname" },
+  "quality": { "message": "Qualität" },
   "cancel": { "message": "Abbrechen" },
   "copy_link": { "message": "Link kopieren" },
   "copy_url": { "message": "URL kopieren" },

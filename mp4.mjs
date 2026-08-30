@@ -339,7 +339,7 @@ function sampleTables(samples, offsets) {
   // lengths matter too: one entry per sample is megabytes on a long video.
   const compositions = samples.map((sample) => sample.composition);
   if (compositions.some((offset) => offset !== 0)) {
-    const shift = Math.min(0, ...compositions);
+    const shift = compositions.reduce((minimum, offset) => Math.min(minimum, offset), 0);
     const runs = [];
     for (const offset of compositions) {
       const value = offset - shift;

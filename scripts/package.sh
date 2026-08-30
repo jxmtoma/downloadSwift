@@ -17,6 +17,12 @@ rm -f "$archive"
 zip -qr "$archive" manifest.json offscreen.html $shared_files $shared_dirs
 unzip -tq "$archive"
 
+source_archive="dist/downloadswift-source-${version}.zip"
+rm -f "$source_archive"
+git ls-files -co --exclude-standard | zip -q "$source_archive" -@
+unzip -tq "$source_archive"
+echo "$source_archive"
+
 # Firefox and Safari swap the service worker for a background page and take a
 # generated manifest; everything else is the same source.
 package_background_browser() {

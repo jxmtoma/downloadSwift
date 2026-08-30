@@ -62,7 +62,7 @@ export function finalizeMp4Duration(initSegment, durationSeconds, muxjs) {
   return bytes;
 }
 
-export function selectHlsVariant(text, baseUrl) {
+export function parseHlsVariants(text, baseUrl) {
   const lines = playlistLines(text);
   const variants = [];
 
@@ -74,25 +74,44 @@ export function selectHlsVariant(text, baseUrl) {
     variants.push({
       audioGroup: values.get("AUDIO"),
       bandwidth: Number(values.get("BANDWIDTH")) || 0,
+      index: variants.length,
+      resolution: values.get("RESOLUTION"),
       url: new URL(uri, baseUrl).href
     });
   }
 
+  return variants;
+}
+
+function hlsAudioUrl(lines, groupId, baseUrl) {
+  if (!groupId) return null;
+  const tracks = lines
+    .filter((line) => line.startsWith("#EXT-X-MEDIA:"))
+    .map((line) => attributes(line))
+    .filter((values) => values.get("TYPE") === "AUDIO"
+      && values.get("GROUP-ID") === groupId
+      && values.has("URI"))
+    .sort((left, right) => Number(right.get("DEFAULT") === "YES")
+      - Number(left.get("DEFAULT") === "YES"));
+  return tracks[0]?.get("URI") ? new URL(tracks[0].get("URI"), baseUrl).href : null;
+}
+
+export function selectHlsVariant(text, baseUrl, selectedUrl, selectedIndex) {
+  const lines = playlistLines(text);
+  const variants = parseHlsVariants(text, baseUrl);
+
   if (!variants.length) return { bandwidth: 0, url: baseUrl };
 
-  const selected = variants.sort((left, right) => right.bandwidth - left.bandwidth)[0];
-  if (selected.audioGroup) {
-    const separateAudio = lines.some((line) => {
-      if (!line.startsWith("#EXT-X-MEDIA:")) return false;
-      const values = attributes(line);
-      return values.get("TYPE") === "AUDIO"
-        && values.get("GROUP-ID") === selected.audioGroup
-        && values.has("URI");
-    });
-    if (separateAudio) throw new Error(t("error_separate_audio"));
-  }
+  const selected = variants.find((variant) => variant.url === selectedUrl)
+    ?? (Number.isInteger(selectedIndex) ? variants[selectedIndex] : null)
+    ?? [...variants].sort((left, right) => right.bandwidth - left.bandwidth)[0];
+  const audioUrl = hlsAudioUrl(lines, selected.audioGroup, baseUrl);
 
-  return { bandwidth: selected.bandwidth, url: selected.url };
+  return {
+    ...audioUrl ? { audioUrl } : {},
+    bandwidth: selected.bandwidth,
+    url: selected.url
+  };
 }
 
 export function parseHlsMedia(text, baseUrl) {

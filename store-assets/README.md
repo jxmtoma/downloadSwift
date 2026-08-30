@@ -4,7 +4,7 @@ These sizes are accepted by both the Chrome Web Store and Microsoft Edge
 Add-ons. Reuse the same files for both listings.
 
 - `icon-128.png`: required store icon
-- `screenshot-detected.png`: detected media with frame previews, 1280×800
+- `screenshot-detected.png`: detected media with frame previews and the quality picker, 1280×800
 - `screenshot-downloading.png`: cross-tab progress, 1280×800
 - `screenshot-free.png`: free/no-account framing over the downloaded list, 1280×800
 - `small-promo-440x280.png`: required promotional tile

@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "在本機儲存直接影片檔案和未加密的 HLS 串流，顯示進度並輸出 MP4，全程不追蹤。" },
+  "extension_description": { "message": "在本機儲存直接影片檔案和未加密的 HLS 與 DASH 串流，支援畫質選擇、進度顯示與 MP4 輸出，全程不追蹤。" },
   "brand_subtitle": { "message": "私密影片儲存工具" },
   "state_off": { "message": "已關閉" },
   "state_active": { "message": "已啟用" },
@@ -37,6 +37,8 @@
   "retry": { "message": "重試" },
   "again": { "message": "再次下載" },
   "download": { "message": "下載" },
+  "filename": { "message": "檔案名稱" },
+  "quality": { "message": "畫質" },
   "cancel": { "message": "取消" },
   "copy_link": { "message": "複製連結" },
   "copy_url": { "message": "複製網址" },

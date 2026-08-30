@@ -23,7 +23,7 @@ list in [`scripts/package.sh`](scripts/package.sh).
 
 | | Chrome / Edge | Firefox | Safari |
 |---|---|---|---|
-| Minimum version | 116 | 142.0 | 26.0 |
+| Minimum version | 116 | 140.0 | 26.0 |
 | Background context | service worker (module) | background page | background page |
 | Dynamic `import()` in background | ✗ forbidden | ✓ | ✓ |
 | Offscreen document | ✓ | ✗ | ✗ |
