@@ -58,6 +58,14 @@ The script produces `dist/downloadswift-<version>.zip` for Chrome and Edge and
 browser-specific `dist/downloadswift-firefox-<version>.zip` and
 `dist/downloadswift-safari-<version>.zip` packages.
 
+The 0.5.0 packages merged into `main` have been submitted to the Chrome Web
+Store, Microsoft Edge Add-ons, and Mozilla Add-ons and are pending review. This
+repository treats a version merged into `main` as published/submitted release
+state, not as a staged release. While any store review is pending, freeze that
+release's code except for reviewer-required fixes or verified critical defects.
+Safari remains supported and packaged, but its App Store publication is
+deliberately on hold as described below.
+
 Before claiming Edge support publicly, sideload the unpacked directory from
 `edge://extensions` and complete the clean-profile test matrix below on the
 current stable Edge release for macOS, Windows, and Linux.
@@ -166,8 +174,7 @@ and [temporary installation](https://developer.apple.com/documentation/safariser
 ## Firefox Add-ons
 
 The public listing is [Video & Media Downloader on Mozilla Add-ons](https://addons.mozilla.org/addon/video-media-downloader/).
-The live 0.4.0 listing is published; this tree prepares the 0.5.0 release for
-the next upload.
+Version 0.5.0 has been submitted and is pending review.
 
 ### Account, test, and upload
 

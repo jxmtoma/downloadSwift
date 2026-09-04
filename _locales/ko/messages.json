@@ -34,6 +34,12 @@
   "video_file": { "message": "동영상 파일" },
   "stream_playlist": { "message": "스트림 재생목록" },
   "background": { "message": "백그라운드" },
+  "show_more": {
+    "message": "$count$개 더 보기",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
   "retry": { "message": "다시 시도" },
   "again": { "message": "다시 다운로드" },
   "download": { "message": "다운로드" },

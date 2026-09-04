@@ -268,13 +268,19 @@ const readTrun = (bytes, traf, defaults) => {
   const sampleFlags = tfhdFlags & 0x20 ? view.getUint32((at += 4) - 4) : defaults.flags;
 
   const samples = [];
-  let dataOffset = 0;
+  // Each run states where its own bytes start, and the runs of a track need not
+  // be contiguous: a segment that interleaves audio and video puts one track's
+  // runs either side of the other's. Reading a single offset per traf copied the
+  // last run's bytes for every sample and ran off the end of the fragment. A run
+  // with no offset of its own follows on from the previous one, which is what an
+  // absent data-offset means.
+  let offset = 0;
   for (const trun of boxes(bytes, traf.body, traf.end)) {
     if (trun.type !== "trun") continue;
     const flags = view.getUint32(trun.body) & 0xffffff;
     const count = view.getUint32(trun.body + 4);
     let cursor = trun.body + 8;
-    if (flags & 0x001) dataOffset = view.getInt32((cursor += 4) - 4);
+    if (flags & 0x001) offset = view.getInt32((cursor += 4) - 4);
     const firstFlags = flags & 0x004 ? view.getUint32((cursor += 4) - 4) : null;
 
     for (let index = 0; index < count; index += 1) {
@@ -284,10 +290,11 @@ const readTrun = (bytes, traf, defaults) => {
       // Signed: a frame can be composed before the one it is coded after.
       const composition = flags & 0x800 ? view.getInt32((cursor += 4) - 4) : 0;
       const effective = index === 0 && firstFlags !== null ? firstFlags : ownFlags;
-      samples.push({ composition, duration, size, sync: !(effective & 0x10000) });
+      samples.push({ composition, duration, offset, size, sync: !(effective & 0x10000) });
+      offset += size;
     }
   }
-  return { dataOffset, samples };
+  return samples;
 };
 
 // stsz, stts and the rest are all run-length or flat lists of 32-bit fields.
@@ -457,14 +464,12 @@ export function createProgressiveMp4(initSegment) {
         const track = tracks.get(id);
         if (!track) continue;
 
-        const { dataOffset, samples } = readTrun(source, traf, track.defaults);
         // Offsets in a fragment are relative to the moof, which is why the two
         // boxes are read as one buffer rather than only the payload.
-        let at = dataOffset;
+        const samples = readTrun(source, traf, track.defaults);
         track.chunks.push({ count: samples.length, offset: position });
         for (const sample of samples) {
-          parts.push(source.subarray(at, at + sample.size));
-          at += sample.size;
+          parts.push(source.subarray(sample.offset, sample.offset + sample.size));
           position += sample.size;
           track.samples.push(sample);
         }

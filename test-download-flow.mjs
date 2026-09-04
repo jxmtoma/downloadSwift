@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import { boxes, findBox } from "./mp4.mjs";
 
 const stored = {};
 const runtimeListeners = [];
@@ -531,5 +533,81 @@ assert.equal(
 assert.ok(hlsReports.some((message) => Number.isFinite(
   Date.parse(message.changes.estimatedEndTime)
 )), "stream progress includes an estimated completion time");
+
+// The highest-risk 0.5 path crosses variant selection, a separate HLS audio
+// playlist, two-track fragment merging, and progressive MP4 finalization. The
+// parser and MP4 builder have focused checks; this keeps their seam covered too.
+const fixture = (name) => new Uint8Array(fs.readFileSync(`test-fixtures/dash/${name}`));
+const splitMaster = `#EXTM3U
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="stereo",NAME="English",DEFAULT=YES,URI="audio/index.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360,AUDIO="stereo"
+low/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1280x720,AUDIO="stereo"
+high/index.m3u8`;
+const splitVideo = `#EXTM3U
+#EXT-X-MAP:URI="init.m4s"
+#EXTINF:8.933333,
+video-1.m4s
+#EXT-X-ENDLIST`;
+const splitAudio = `#EXTM3U
+#EXT-X-MAP:URI="init.m4s"
+#EXTINF:8.933333,
+audio-1.m4s
+#EXT-X-ENDLIST`;
+const splitResponses = new Map([
+  ["https://cdn.example/master.m3u8", splitMaster],
+  ["https://cdn.example/low/index.m3u8", splitVideo],
+  ["https://cdn.example/high/index.m3u8", splitVideo],
+  ["https://cdn.example/audio/index.m3u8", splitAudio],
+  ["https://cdn.example/low/init.m4s", fixture("video-init.m4s")],
+  ["https://cdn.example/low/video-1.m4s", fixture("video-1.m4s")],
+  ["https://cdn.example/audio/init.m4s", fixture("audio-init.m4s")],
+  ["https://cdn.example/audio/audio-1.m4s", fixture("audio-1.m4s")]
+]);
+const splitRequests = [];
+globalThis.fetch = async (url) => {
+  splitRequests.push(url);
+  const body = splitResponses.get(url);
+  return body == null ? new Response(null, { status: 404 }) : new Response(body);
+};
+
+const splitPrepared = new Promise((resolve) => {
+  resolvePrepared = resolve;
+});
+runtimeListeners[1]({
+  job: {
+    filename: "Selected quality.mp4",
+    id: "offscreen-split-hls",
+    item: {
+      format: "HLS",
+      kind: "playlist",
+      url: "https://cdn.example/master.m3u8",
+      variantUrl: "https://cdn.example/low/index.m3u8"
+    },
+    pageTitle: "Page title",
+    tabId: 5
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+const splitReady = await splitPrepared;
+assert.equal(splitReady.filename, "Selected quality.mp4");
+assert.ok(splitRequests.includes("https://cdn.example/low/video-1.m4s"));
+assert.ok(!splitRequests.some((url) => url.includes("/high/")), "only the selected quality is fetched");
+
+const splitBytes = new Uint8Array(await stagedFile.arrayBuffer());
+assert.deepEqual([...boxes(splitBytes)].map((box) => box.type), ["ftyp", "mdat", "moov"]);
+const moov = findBox(splitBytes, ["moov"]);
+const tracks = [...boxes(splitBytes, moov.body, moov.end)].filter((box) => box.type === "trak");
+assert.equal(tracks.length, 2, "the finished MP4 declares video and audio tracks");
+assert.deepEqual(tracks.map((track) => {
+  const hdlr = findBox(splitBytes, ["mdia", "hdlr"], track.body, track.end);
+  return String.fromCharCode(...splitBytes.subarray(hdlr.body + 8, hdlr.body + 12));
+}), ["vide", "soun"]);
+for (const track of tracks) {
+  const sizes = findBox(splitBytes, ["mdia", "minf", "stbl", "stsz"], track.body, track.end);
+  assert.ok(new DataView(splitBytes.buffer, splitBytes.byteOffset, splitBytes.byteLength)
+    .getUint32(sizes.body + 8) > 0, "each track has samples");
+}
 
 console.log("managed and direct download flow check passed");

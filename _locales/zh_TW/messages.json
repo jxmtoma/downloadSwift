@@ -34,6 +34,12 @@
   "video_file": { "message": "影片檔案" },
   "stream_playlist": { "message": "串流播放清單" },
   "background": { "message": "背景" },
+  "show_more": {
+    "message": "顯示另外 $count$ 項",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
   "retry": { "message": "重試" },
   "again": { "message": "再次下載" },
   "download": { "message": "下載" },

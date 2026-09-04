@@ -224,4 +224,54 @@ longVideo.addFragment(
 );
 assert.doesNotThrow(() => longVideo.moov());
 
+// A segment whose track has more than one run per fragment: an HLS stream with
+// audio and video in one mdat puts one track's runs either side of the other's,
+// and every run states its own offset. Reading a single offset per traf copied
+// the last run's bytes for every sample and walked off the end of the fragment,
+// so the file held a fraction of its media while the header claimed all of it.
+const RUN_SAMPLES = 4;
+const RUN_SAMPLE_BYTES = 10;
+const interleavedTfhd = new Uint8Array(8);
+view(interleavedTfhd).setUint32(0, 0x020000);
+view(interleavedTfhd).setUint32(4, readTrackId(videoInit));
+
+const runBox = (offset) => {
+  const payload = new Uint8Array(12 + RUN_SAMPLES * 4);
+  view(payload).setUint32(0, 0x201);
+  view(payload).setUint32(4, RUN_SAMPLES);
+  view(payload).setInt32(8, offset);
+  for (let index = 0; index < RUN_SAMPLES; index += 1) {
+    view(payload).setUint32(12 + index * 4, RUN_SAMPLE_BYTES);
+  }
+  return makeBox("trun", payload);
+};
+
+// Three runs of media: ours, the other track's, ours again. Each byte is stamped
+// with the run it belongs to, so misplaced reads are visible in the output.
+const runBytes = RUN_SAMPLES * RUN_SAMPLE_BYTES;
+const interleavedMedia = new Uint8Array(3 * runBytes);
+interleavedMedia.fill(1, runBytes, runBytes * 2);
+interleavedMedia.fill(2, runBytes * 2);
+const interleavedMdat = makeBox("mdat", interleavedMedia);
+// Offsets are relative to the start of the moof, so the moof has to be built
+// once at its final length before the real ones can be written.
+const moofBytes = makeBox("moof", makeBox("mfhd", new Uint8Array(8)),
+  makeBox("traf", makeBox("tfhd", interleavedTfhd), runBox(0), runBox(0))).length;
+const interleavedMoof = makeBox("moof", makeBox("mfhd", new Uint8Array(8)), makeBox("traf",
+  makeBox("tfhd", interleavedTfhd),
+  runBox(moofBytes + 8),
+  runBox(moofBytes + 8 + runBytes * 2)));
+
+const interleaved = createProgressiveMp4(videoInit);
+const written = interleaved.addFragment(interleavedMoof, interleavedMdat);
+assert.equal(written.length, runBytes * 2, "every run's samples must be written, not just the last run's");
+assert.deepEqual([...new Set(written)], [0, 2], "each run's samples must come from that run's offset");
+
+const interleavedSizes = findBox(interleaved.moov(), ["moov", "trak", "mdia", "minf", "stbl", "stsz"]);
+assert.equal(
+  view(interleaved.moov()).getUint32(interleavedSizes.body + 8),
+  RUN_SAMPLES * 2,
+  "the tables must describe as many samples as were written"
+);
+
 console.log("MP4 track merge check passed");

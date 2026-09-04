@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { detectMedia, downloadFilename, isSecureMediaUrl } from "./media.mjs";
+import {
+  byPlayability,
+  candidateRank,
+  detectMedia,
+  downloadFilename,
+  isSecureMediaUrl
+} from "./media.mjs";
 
 const header = (value) => [{ name: "Content-Type", value }];
 
@@ -105,5 +111,63 @@ const playlist = detectMedia({
 });
 assert.equal(playlist.format, "HLS");
 assert.equal(playlist.size, null, "a manifest's own length is not the video's size");
+
+// The list is built newest-first, and a page's hover-preview clips load after
+// the video they preview, so the previews sat above it. They are ranked down
+// rather than filtered out: each one is a real MP4 someone could have meant.
+const rank = (items) => items.sort((left, right) => candidateRank(right) - candidateRank(left))
+  .map((item) => item.name);
+assert.deepEqual(
+  rank([
+    { kind: "file", name: "preview-2.mp4", size: 300 * 1024 },
+    { kind: "file", name: "preview-1.mp4", size: 200 * 1024 },
+    { kind: "playlist", name: "master.m3u8", size: null },
+    { kind: "file", name: "video.mp4", size: 400 * 1024 * 1024 }
+  ]),
+  ["master.m3u8", "video.mp4", "preview-2.mp4", "preview-1.mp4"]
+);
+// An unsized file keeps the benefit of the doubt the floor already gives it,
+// rather than sinking below every preview that happened to state a length.
+assert.deepEqual(
+  rank([
+    { kind: "file", name: "preview.mp4", size: 300 * 1024 },
+    { kind: "file", name: "8fj2", size: null }
+  ]),
+  ["8fj2", "preview.mp4"]
+);
+
+// Codec beats bitrate when the two disagree, because a sharper file that no
+// decoder on the machine can open is worth less than a playable one. HEVC sits
+// between the two: Macs have decoded it in hardware since 2017.
+const best = (variants) => [...variants].sort(byPlayability)[0].name;
+assert.equal(best([
+  { bandwidth: 4000000, codecs: "av01.0.08M.08,mp4a.40.2", name: "av1-1080p" },
+  { bandwidth: 800000, codecs: "avc1.640028,mp4a.40.2", name: "h264-360p" }
+]), "h264-360p");
+assert.equal(best([
+  { bandwidth: 4000000, codecs: "av01.0.08M.08", name: "av1" },
+  { bandwidth: 2000000, codecs: "hvc1.1.6.L93.B0", name: "hevc" }
+]), "hevc");
+// Within one codec the sharper variant still wins.
+assert.equal(best([
+  { bandwidth: 800000, codecs: "avc1.4d401e", name: "h264-360p" },
+  { bandwidth: 4000000, codecs: "avc1.640028", name: "h264-1080p" }
+]), "h264-1080p");
+// A variant that states no codec keeps the benefit of the doubt: it outranks a
+// known-unplayable one and yields to a known-good one, whatever its bitrate.
+assert.equal(best([
+  { bandwidth: 4000000, codecs: "av01.0.08M.08", name: "av1" },
+  { bandwidth: 900000, name: "unstated" }
+]), "unstated");
+assert.equal(best([
+  { bandwidth: 4000000, name: "unstated" },
+  { bandwidth: 900000, codecs: "avc1.4d401e", name: "h264" }
+]), "h264");
+// Audio representations state no video codec at all, so they all tie and fall
+// through to bandwidth — the same order they had before any of this existed.
+assert.equal(best([
+  { bandwidth: 64000, codecs: "mp4a.40.2", name: "aac-low" },
+  { bandwidth: 128000, codecs: "mp4a.40.2", name: "aac-high" }
+]), "aac-high");
 
 console.log("media detection check passed");

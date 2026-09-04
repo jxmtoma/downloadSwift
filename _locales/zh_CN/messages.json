@@ -34,6 +34,12 @@
   "video_file": { "message": "视频文件" },
   "stream_playlist": { "message": "流媒体播放列表" },
   "background": { "message": "后台" },
+  "show_more": {
+    "message": "显示另外 $count$ 项",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
   "retry": { "message": "重试" },
   "again": { "message": "再次下载" },
   "download": { "message": "下载" },

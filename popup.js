@@ -1,10 +1,10 @@
-import { downloadFilename } from "./media.mjs";
+import { byPlayability, candidateRank, downloadFilename } from "./media.mjs";
 import { formatTimeUntil, localizeDocument, t } from "./i18n.mjs";
 import { createTsTransmuxer, parseHlsVariants } from "./hls.mjs";
 import { readDashXml, selectDashVariants } from "./dash.mjs";
 import { getMedia } from "./resolve.mjs";
 import { resolveSiteVariants } from "./sites.mjs";
-import { makePreview, videoDimensions } from "./preview.mjs";
+import { makePreview, queueForItem, videoDimensions } from "./preview.mjs";
 
 const api = globalThis.browser ?? globalThis.chrome;
 
@@ -40,7 +40,17 @@ let currentTabTitle = "";
 let currentTabOrigin = "";
 let pollTimer;
 let selectedView = "detected";
+// A page that offers hover-preview clips lists a dozen candidates, and the
+// ranking above already puts the real video first. The tail is folded rather
+// than dropped: a preview clip is still a real file someone may have meant to
+// save. Folding is also what makes it cheap — each shown item pulls two
+// megabytes for its thumbnail and probes its variants, and the ones nobody asked
+// to see should cost neither.
+const COLLAPSED_ITEMS = 3;
+let showAllItems = false;
+const shownItems = (items) => (showAllItems ? items : items.slice(0, COLLAPSED_ITEMS));
 const requestedPreviews = new Set();
+const requestedEstimates = new Set();
 const qualityCache = new Map();
 const qualityRequests = new Map();
 const qualitySelections = new Map();
@@ -281,7 +291,7 @@ async function streamQualities(item) {
           ...variant,
           selection: { variantIndex: variant.index, variantUrl: variant.url }
         }))
-        .sort((left, right) => right.bandwidth - left.bandwidth);
+        .sort(byPlayability);
     }
 
     const manifest = readDashXml(text, item.url, DOMParser);
@@ -294,7 +304,7 @@ async function streamQualities(item) {
           representationIndex: index
         }
       }))
-      .sort((left, right) => right.bandwidth - left.bandwidth);
+      .sort(byPlayability);
   } finally {
     await disarmPreview(item, armed.ruleId);
   }
@@ -304,15 +314,13 @@ function loadQualities(item) {
   if (qualityCache.has(item.url)) return Promise.resolve(qualityCache.get(item.url));
   if (qualityRequests.has(item.url)) return qualityRequests.get(item.url);
 
-  const request = previewQueue
-    .then(() => streamQualities(item))
+  const request = queueForItem(item.url, () => streamQualities(item))
     .then((qualities) => {
       qualityCache.set(item.url, qualities);
       return qualities;
     })
     .finally(() => qualityRequests.delete(item.url));
   qualityRequests.set(item.url, request);
-  previewQueue = request.catch(() => {});
   return request;
 }
 
@@ -360,9 +368,13 @@ async function streamPreviewBlob(item) {
       false
     );
 
-    const parts = [];
-    if (media.initUrl) parts.push(await readBytes(media.initUrl));
-    const segment = await readBytes(media.segmentUrls[0]);
+    // Independent of each other, and the round trip to a CDN is most of what a
+    // small init segment costs.
+    const [init, segment] = await Promise.all([
+      media.initUrl ? readBytes(media.initUrl) : null,
+      readBytes(media.segmentUrls[0])
+    ]);
+    const parts = init ? [init] : [];
     if (media.extension === "mp4") {
       parts.push(segment);
     } else {
@@ -375,6 +387,34 @@ async function streamPreviewBlob(item) {
     return new Blob(parts, { type: "video/mp4" });
   } finally {
     if (armed?.ok) await disarmPreview(item, armed.ruleId);
+  }
+}
+
+// What a segment-list stream will weigh is a property of its manifest — the
+// declared bitrate over the runtime — and needs no media at all. It was being
+// written halfway through building a thumbnail, so a row's size waited on every
+// earlier row's megabytes and frame decode before it could appear. Asked for on
+// its own it costs nothing: the quality probe has already left these manifests
+// in the text cache, so every size lands together, seconds ahead of the pictures.
+async function fetchEstimate(item) {
+  const armed = await armPreview(item, undefined, true);
+  if (!armed?.ok) return;
+
+  try {
+    const media = await getMedia(item, { fetchJson: readJson, fetchText: readText });
+    // A byte-range stream states an exact total in the ranged responses the
+    // preview pass is already making. Only the derived figure is free here.
+    if (media.video) return;
+    await storeSize(
+      item,
+      Math.round((media.bitsPerSecond || 0) / 8 * (media.durationSeconds || 0)),
+      false
+    );
+  } catch {
+    // A stream that will not resolve has no size to show. The preview pass
+    // behind this one surfaces the failure; this pass stays quiet about it.
+  } finally {
+    await disarmPreview(item, armed.ruleId);
   }
 }
 
@@ -417,14 +457,23 @@ async function fetchPreview(item) {
   }
 }
 
-// One at a time: every preview arms its own redirect rule and pulls two
-// megabytes, and firing all of them at once would stall the list it decorates.
-let previewQueue = Promise.resolve();
 function requestPreviews(items, previews) {
   for (const item of items) {
     if (previews.get(item.url)?.height || requestedPreviews.has(item.url)) continue;
     requestedPreviews.add(item.url);
-    previewQueue = previewQueue.then(() => fetchPreview(item).catch(() => {}));
+    queueForItem(item.url, () => fetchPreview(item)).catch(() => {});
+  }
+}
+
+// Files state their size in a header the moment they are detected; only a
+// stream has to be resolved to find one out.
+function requestEstimates(items, estimates) {
+  for (const item of items) {
+    if (item.kind !== "playlist" || estimates.has(item.url) || requestedEstimates.has(item.url)) {
+      continue;
+    }
+    requestedEstimates.add(item.url);
+    queueForItem(item.url, () => fetchEstimate(item)).catch(() => {});
   }
 }
 
@@ -443,9 +492,21 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
     }
   }
 
+  // Every render rebuilds the list, and a preview landing for any row triggers
+  // one — so a filename being typed lost its caret to a thumbnail arriving three
+  // rows away. The field is put back where it was afterwards.
+  const active = document.activeElement;
+  const focusedUrl = list.contains(active) ? active.dataset.url : null;
+  const caret = focusedUrl ? [active.selectionStart, active.selectionEnd] : null;
+  let refocus = null;
+
   list.replaceChildren();
+  // The count stays honest about everything found, folded or not.
   count.textContent = String(visibleItems.length);
   empty.hidden = visibleItems.length > 0;
+  // Only the detected list folds. The download views are a record of what the
+  // user themselves started, and nothing there is noise to be tidied away.
+  const shown = selectedView === "detected" ? shownItems(visibleItems) : visibleItems;
   const jobsByUrl = new Map();
 
   for (const job of jobs) {
@@ -453,7 +514,7 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
     if (!previous || job.createdAt > previous.createdAt) jobsByUrl.set(job.item?.url, job);
   }
 
-  for (const item of visibleItems) {
+  for (const item of shown) {
     const job = jobsByUrl.get(item.url);
     const jobActive = ACTIVE_JOB_STATES.has(job?.state);
     const row = document.createElement("li");
@@ -483,6 +544,8 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
       name.type = "text";
       name.value = filenameEdits.get(item.url) ?? visibleFilename(item, job);
       name.setAttribute("aria-label", t("filename"));
+      name.dataset.url = item.url;
+      if (item.url === focusedUrl) refocus = name;
       name.addEventListener("input", () => filenameEdits.set(item.url, name.value));
     } else {
       name.textContent = visibleFilename(item, job);
@@ -644,6 +707,26 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
 
     list.append(row);
   }
+
+  if (refocus) {
+    refocus.focus();
+    if (caret?.[0] != null) refocus.setSelectionRange(caret[0], caret[1]);
+  }
+
+  if (shown.length < visibleItems.length) {
+    const more = document.createElement("li");
+    more.className = "show-more";
+    const button = document.createElement("button");
+    button.className = "text-button";
+    button.type = "button";
+    button.textContent = t("show_more", [String(visibleItems.length - shown.length)]);
+    button.addEventListener("click", () => {
+      showAllItems = true;
+      render().catch(setError);
+    });
+    more.append(button);
+    list.append(more);
+  }
 }
 
 async function addNativeProgress(jobs) {
@@ -689,8 +772,12 @@ async function render() {
   const activeUrls = new Set(allJobs
     .filter((job) => ACTIVE_JOB_STATES.has(job.state) && job.tabId === currentTabId)
     .map((job) => job.item?.url));
+  // Sorted here rather than at render time so the previews and qualities below
+  // are fetched in the order the list shows them: they run one at a time, and
+  // the video at the top should not wait behind six preview clips.
   const detectedItems = (stored[storageKey()] ?? [])
-    .filter((item) => !completedUrls.has(item.url) && !activeUrls.has(item.url));
+    .filter((item) => !completedUrls.has(item.url) && !activeUrls.has(item.url))
+    .sort((left, right) => candidateRank(right) - candidateRank(left));
   const visibleJobs = selectedView === "downloaded"
     ? allJobs.filter((job) => job.state === "complete")
     : selectedView === "downloading"
@@ -723,12 +810,22 @@ async function render() {
     .filter(([key]) => key.startsWith(prefix))
     .map(([key, value]) => [key.slice(prefix.length), value]));
   const previews = entries("preview:");
-  renderItems(selectedView === "detected" ? detectedItems : [], jobs, previews, entries("estimate:"));
+  const estimates = entries("estimate:");
+  renderItems(selectedView === "detected" ? detectedItems : [], jobs, previews, estimates);
   if (selectedView === "detected") {
-    for (const item of detectedItems) {
-      requestQualities([item]);
-      requestPreviews([item], previews);
-    }
+    // Folded items are left alone: a thumbnail costs two megabytes and a
+    // redirect rule, and a quality probe costs a request, for a row nobody is
+    // looking at. Expanding the list is what pays for them.
+    //
+    // Variants for every row first, thumbnails after. Both share one serial
+    // queue, and a thumbnail pulls two megabytes and decodes a frame where a
+    // variant list is a few kilobytes of text. Asking for them a row at a time
+    // put each row's Download button behind the previous row's two megabytes,
+    // so the list took as long to become usable as it took to become pretty.
+    const shown = shownItems(detectedItems);
+    requestQualities(shown);
+    requestEstimates(shown, estimates);
+    requestPreviews(shown, previews);
   }
 
   clearTimeout(pollTimer);
