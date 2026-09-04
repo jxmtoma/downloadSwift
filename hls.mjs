@@ -1,3 +1,4 @@
+import { byPlayability } from "./media.mjs";
 import { t } from "./i18n.mjs";
 
 function attributes(line) {
@@ -74,6 +75,7 @@ export function parseHlsVariants(text, baseUrl) {
     variants.push({
       audioGroup: values.get("AUDIO"),
       bandwidth: Number(values.get("BANDWIDTH")) || 0,
+      codecs: values.get("CODECS"),
       index: variants.length,
       resolution: values.get("RESOLUTION"),
       url: new URL(uri, baseUrl).href
@@ -104,7 +106,7 @@ export function selectHlsVariant(text, baseUrl, selectedUrl, selectedIndex) {
 
   const selected = variants.find((variant) => variant.url === selectedUrl)
     ?? (Number.isInteger(selectedIndex) ? variants[selectedIndex] : null)
-    ?? [...variants].sort((left, right) => right.bandwidth - left.bandwidth)[0];
+    ?? [...variants].sort(byPlayability)[0];
   const audioUrl = hlsAudioUrl(lines, selected.audioGroup, baseUrl);
 
   return {

@@ -6,6 +6,30 @@ const PREVIEW_WIDTH = 160;
 const DECODE_TIMEOUT = 8000;
 const METADATA_TIMEOUT = 3000;
 
+// Three lanes rather than one queue. An item always gets the same lane, so its
+// own probe, size and thumbnail stay in order behind each other: the three share
+// a redirect rule keyed by the item's URL, and two of them armed at once means
+// one silently loses the rule and comes back empty. Different items sit in
+// different lanes and run side by side. One queue for everything made the last
+// row wait on every row above it — a thumbnail pulls a whole segment and decodes
+// a frame — and no queue at all would have them fighting for the bandwidth the
+// page is still using to play the video they came from.
+//
+// Each lane keeps the order things were asked for, and a render asks for every
+// row's variants, then every row's size, then every row's thumbnail. So the
+// cheap passes still finish first without anything having to sequence them.
+const LANES = [Promise.resolve(), Promise.resolve(), Promise.resolve()];
+const itemLanes = new Map();
+
+export function queueForItem(url, work) {
+  if (!itemLanes.has(url)) itemLanes.set(url, itemLanes.size % LANES.length);
+  const lane = itemLanes.get(url);
+  const chain = LANES[lane].then(() => work());
+  // The lane carries on after a failure; the caller still sees the rejection.
+  LANES[lane] = chain.catch(() => {});
+  return chain;
+}
+
 const withTimeout = (promise, ms, label) => {
   let timer;
   return Promise.race([

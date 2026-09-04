@@ -34,6 +34,12 @@
   "video_file": { "message": "動画ファイル" },
   "stream_playlist": { "message": "ストリームプレイリスト" },
   "background": { "message": "バックグラウンド" },
+  "show_more": {
+    "message": "他 $count$ 件を表示",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
   "retry": { "message": "再試行" },
   "again": { "message": "もう一度" },
   "download": { "message": "ダウンロード" },

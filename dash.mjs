@@ -1,3 +1,4 @@
+import { byPlayability } from "./media.mjs";
 import { t } from "./i18n.mjs";
 
 const VIDEO_CODEC = /^(avc[13]|hev1|hvc1|vp0?[89]|av01)/i;
@@ -52,15 +53,14 @@ export function carriesBothStreams(set) {
   });
 }
 
-const highestBandwidth = (representations, selection) => {
+const bestRepresentation = (representations, selection) => {
   const byId = selection?.representationId != null
     ? representations.find(({ id }) => id === selection.representationId)
     : null;
   const byIndex = Number.isInteger(selection?.representationIndex)
     ? representations[selection.representationIndex]
     : null;
-  return byId ?? byIndex ?? [...representations]
-    .sort((left, right) => (right.bandwidth ?? 0) - (left.bandwidth ?? 0))[0];
+  return byId ?? byIndex ?? [...representations].sort(byPlayability)[0];
 };
 
 // SegmentTemplate is what encoders emit; SegmentList and a plain BaseURL are the
@@ -136,7 +136,7 @@ export function selectDashMedia(manifest, selection) {
   const chosen = videoSet(manifest);
   if (!chosen) throw new Error(t("error_dash_no_streams"));
 
-  const representation = highestBandwidth(chosen.representations, selection);
+  const representation = bestRepresentation(chosen.representations, selection);
   if (!representation) throw new Error(t("error_dash_no_streams"));
 
   const { initUrl, segmentUrls } = representationSegments(
@@ -160,7 +160,7 @@ export function selectDashMedia(manifest, selection) {
   // and combined into one movie; only a video set that already carries audio
   // skips this.
   if (audioSets.length && !carriesBothStreams(chosen)) {
-    const audio = highestBandwidth(audioSets[0].representations);
+    const audio = bestRepresentation(audioSets[0].representations);
     const audioSegments = audio
       && representationSegments(audio, audioSets[0], manifest.durationSeconds);
     if (audioSegments?.initUrl && audioSegments.segmentUrls.length) {

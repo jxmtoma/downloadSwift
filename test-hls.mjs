@@ -43,6 +43,41 @@ assert.deepEqual(
   }
 );
 
+// A master offering the same video in two codecs. AV1 is the bigger, sharper
+// variant and the one a bandwidth sort picks, and the file it produces refuses
+// to open in QuickTime on any Mac older than an M3 — macOS has no AV1 decoder
+// to fall back on. Whether the download opens at all outranks how sharp it is.
+const codecMaster = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360,CODECS="avc1.640028,mp4a.40.2"
+h264/index.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1920x1080,CODECS="av01.0.08M.08,mp4a.40.2"
+av1/index.m3u8`;
+assert.equal(
+  parseHlsVariants(codecMaster, "https://cdn.example/master.m3u8")[1].codecs,
+  "av01.0.08M.08,mp4a.40.2",
+  "CODECS is quoted and holds a comma, so it has to survive the attribute split"
+);
+assert.equal(
+  selectHlsVariant(codecMaster, "https://cdn.example/master.m3u8").url,
+  "https://cdn.example/h264/index.m3u8"
+);
+// Ranking is only the default. An explicit pick is still honoured: the picker
+// lists every variant, and choosing the sharper file is the user's to make.
+assert.equal(
+  selectHlsVariant(
+    codecMaster,
+    "https://cdn.example/master.m3u8",
+    "https://cdn.example/av1/index.m3u8"
+  ).url,
+  "https://cdn.example/av1/index.m3u8"
+);
+// A master that states no codecs at all must still sort by bandwidth: unknown
+// is not the same as unplayable, and demoting it would pick the worst variant.
+assert.equal(
+  selectHlsVariant(master, "https://cdn.example/master.m3u8").url,
+  "https://cdn.example/high/index.m3u8"
+);
+
 const media = `#EXTM3U
 #EXT-X-MAP:URI="init.mp4"
 #EXTINF:6,

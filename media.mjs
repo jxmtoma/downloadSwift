@@ -21,6 +21,35 @@ const SEGMENT_MIMES = new Set([
 // element loaded it if full-length ads start showing up.
 const MIN_FILE_BYTES = 64 * 1024;
 
+// The floor only clears out the junk that is obviously not a video. A page that
+// offers hover-preview clips serves several real, playable MP4s per video, well
+// over the floor, and they load after the video does — so a newest-first list
+// put the previews above the thing being previewed. Ranking by size sinks them
+// without hiding them, since a small file is still a file someone may have meant
+// to download. A playlist states no size of its own and an unsized response
+// keeps the same benefit of the doubt the floor gives it, so both rank with the
+// largest file rather than at zero.
+export const candidateRank = (item) => (
+  item.kind === "playlist" || item.size == null ? Number.MAX_SAFE_INTEGER : item.size
+);
+
+// Variants differ in more than size: the codec decides whether the saved file
+// will open at all. H.264 plays on everything. Macs have decoded HEVC in
+// hardware since 2017. AV1 needs an M3 or newer, and macOS ships no software
+// fallback, so an AV1 download plays back in the very browser that fetched it
+// and then refuses to open in QuickTime — the file is perfect and unplayable.
+// An unstated codec is not demoted: unknown is not the same as unplayable.
+const CODEC_RANKS = [[/\bavc[13]\b/, 0], [/\b(hvc1|hev1)\b/, 1], [/\b(av01|vp0?9)\b/, 3]];
+const codecRank = (codecs) => CODEC_RANKS.find(([codec]) => codec.test(codecs ?? ""))?.[1] ?? 2;
+
+// Highest quality first, among the variants that will actually open. Quality
+// still loses to playability: the picker lists every variant either way, so a
+// deliberate choice of the sharper file is one click away.
+export const byPlayability = (left, right) => (
+  codecRank(left.codecs) - codecRank(right.codecs)
+  || (right.bandwidth ?? 0) - (left.bandwidth ?? 0)
+);
+
 export function isSecureMediaUrl(rawUrl) {
   try {
     return new URL(rawUrl).protocol === "https:";

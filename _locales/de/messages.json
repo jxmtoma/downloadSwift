@@ -34,6 +34,12 @@
   "video_file": { "message": "Videodatei" },
   "stream_playlist": { "message": "Stream-Playlist" },
   "background": { "message": "Hintergrund" },
+  "show_more": {
+    "message": "$count$ weitere anzeigen",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
   "retry": { "message": "Wiederholen" },
   "again": { "message": "Erneut" },
   "download": { "message": "Herunterladen" },
