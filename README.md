@@ -26,11 +26,10 @@ For local development, run `sh scripts/package.sh`, open
 
 ## Load it in Safari
 
-**Safari is not working yet.** Detection and preparation run, but saving the
-finished file does not: Safari ignores the download attribute, and the file the
-popup is handed arrives empty even though the page that wrote it reads the same
-file as complete. Chrome, Edge, and Firefox are unaffected. Do not publish the
-Safari package until this is resolved.
+Safari remains supported and packaged, but App Store publication is deliberately
+on hold until a live detect ▸ download ▸ save test produces a non-zero,
+playable file. The known zero-byte save causes are fixed, and saving now happens
+in a dedicated tab.
 
 1. Run `sh scripts/package.sh` (Safari 26 or later on macOS).
 2. In **Safari → Settings → Advanced**, enable **Show features for web developers**.
@@ -63,10 +62,10 @@ notification is clicked: opening a file needs a user-action handler there, and a
 notification click is not one.
 Safari has no WebExtension downloads or notifications API, and does not honour a
 download attribute clicked from a background page, so a finished job waits there
-with a **Save** button: pressing it saves from the popup, where the click is a
-real user gesture. The file is kept until it is saved, including across a
-restart. Whether Safari's own save was then accepted or dismissed is not
-observable, so no completion actions are offered.
+with a **Save** button: pressing it opens a dedicated tab that completes Safari's
+save handoff. The file is kept until it is saved, including across a restart.
+Whether Safari's own save was then accepted or dismissed is not observable, so
+no completion actions are offered.
 A detected stream shows an exact size when its tracks are single files and an
 approximate one, marked with a leading tilde, when they are segment lists.
 The popup separates
