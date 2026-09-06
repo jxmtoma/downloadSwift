@@ -14,6 +14,7 @@ localizeDocument();
 const statusElement = document.getElementById("status");
 const preview = document.getElementById("preview");
 const link = document.getElementById("save");
+const subtitleLink = document.getElementById("save-subtitles");
 
 function fail(message) {
   statusElement.textContent = message;
@@ -56,4 +57,24 @@ function fail(message) {
       [key]: { ...job, state: "complete", status: t("status_saved") }
     });
   });
+
+  // The subtitle sidecar rides along when the job wrote one. It is read here
+  // the same way the video is: a blob made by this document outlives the
+  // background page that cannot keep its own.
+  if (job.subtitleTempName) {
+    try {
+      const root = await navigator.storage.getDirectory();
+      const sidecarHandle = await root.getFileHandle(job.subtitleTempName);
+      const sidecarFile = await sidecarHandle.getFile();
+      if (sidecarFile.size) {
+        subtitleLink.href = URL.createObjectURL(
+          sidecarFile.slice(0, sidecarFile.size, "text/vtt")
+        );
+        subtitleLink.download = job.subtitleFilename || "subtitles.vtt";
+        subtitleLink.hidden = false;
+      }
+    } catch {
+      // No subtitles to save is not an error worth interrupting the video's save.
+    }
+  }
 })();

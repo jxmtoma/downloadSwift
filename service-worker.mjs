@@ -464,8 +464,6 @@ async function startDirectJob({ filename, job }) {
 // offscreen document is never rendered, which is exactly the case a <video>
 // element is not obliged to decode for. This side only arms the referer replay
 // the fetch needs, then takes it back down.
-// ponytail: no preview for HLS or DASH; wire it to their first segment if the
-// format tile turns out not to be enough there.
 async function armPreview(item, hosts, force = false) {
   if (!isSecureMediaUrl(item?.url)) return { ok: false };
   const key = previewKey(item.url);
@@ -533,6 +531,31 @@ async function acceptPreparedDownload(message) {
     tempName: message.tempName,
     url: message.url
   });
+}
+
+// A subtitle sidecar is a download of its own, deliberately outside the job
+// machinery: the job already completed when the video was saved, and pushing a
+// second completion through the same mapping would re-complete the job and
+// notify twice. These ids are only remembered so their completion events are
+// not stashed as mapping-less changes.
+const sidecarDownloadIds = new Set();
+
+async function downloadSidecar({ filename, url }) {
+  if (!api.downloads?.download) return { ok: false };
+  try {
+    const downloadId = await api.downloads.download({
+      conflictAction: "uniquify",
+      filename,
+      saveAs: false,
+      url
+    });
+    sidecarDownloadIds.add(downloadId);
+    return { ok: true };
+  } catch (error) {
+    // The video is already saved; a refused subtitle is only a console note.
+    console.error("DownloadSwift:", error);
+    return { error: error.message, ok: false };
+  }
 }
 
 async function cancelJob(jobId) {
@@ -623,6 +646,10 @@ export async function handleServiceWorkerMessage(message) {
     return acceptPreparedDownload(message);
   }
 
+  if (message.type === "sidecar-ready") {
+    return downloadSidecar(message);
+  }
+
   if (message.type === "cancel-download") {
     await cancelJob(message.jobId);
     return { ok: true };
@@ -708,6 +735,7 @@ async function finishNativeDownload(change) {
 
 api.downloads?.onChanged?.addListener((change) => {
   if (!["complete", "interrupted"].includes(change.state?.current)) return;
+  if (sidecarDownloadIds.delete(change.id)) return;
   enqueue(() => finishNativeDownload(change));
 });
 

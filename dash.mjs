@@ -36,8 +36,13 @@ function codecKinds(representation) {
 
 // An adaptation set says what it carries either outright or through its codecs.
 export function adaptationKind(set) {
-  if (set.contentType === "video" || set.contentType === "audio") return set.contentType;
+  if (set.contentType === "video" || set.contentType === "audio" || set.contentType === "text") {
+    return set.contentType;
+  }
   if (set.mimeType?.startsWith("audio/")) return "audio";
+  // Subtitles arrive as WebVTT or TTML, and some manifests label the set
+  // application/ttml+xml rather than text/*.
+  if (set.mimeType?.startsWith("text/") || set.mimeType === "application/ttml+xml") return "text";
   const kinds = set.representations.map(codecKinds);
   if (kinds.some((kind) => kind.video)) return "video";
   if (kinds.some((kind) => kind.audio)) return "audio";
@@ -73,13 +78,19 @@ export function representationSegments(representation, set, durationSeconds) {
   const template = representation.segmentTemplate ?? set.segmentTemplate;
 
   if (representation.segmentList?.length) {
-    return { initUrl: representation.initUrl ?? null, segmentUrls: representation.segmentList };
+    return {
+      initUrl: representation.initUrl ?? null,
+      segmentDurations: null,
+      segmentUrls: representation.segmentList
+    };
   }
 
   if (!template?.media) {
     // A representation with only a BaseURL is one whole file, which the direct
     // download path already handles.
-    if (representation.baseUrl) return { initUrl: null, segmentUrls: [representation.baseUrl] };
+    if (representation.baseUrl) {
+      return { initUrl: null, segmentDurations: null, segmentUrls: [representation.baseUrl] };
+    }
     throw new Error(t("error_dash_unsupported"));
   }
 
@@ -89,6 +100,7 @@ export function representationSegments(representation, set, durationSeconds) {
   const timescale = Number(template.timescale) || 1;
   const startNumber = Number(template.startNumber ?? 1);
   const segmentUrls = [];
+  const segmentDurations = [];
 
   if (template.timeline?.length) {
     // SegmentTimeline states each run of segments explicitly, with @r repeating
@@ -98,13 +110,15 @@ export function representationSegments(representation, set, durationSeconds) {
     for (const entry of template.timeline) {
       time = entry.t != null ? Number(entry.t) : time;
       const repeats = Number(entry.r ?? 0);
+      const seconds = Number(entry.d) / timescale;
       for (let index = 0; index <= repeats; index += 1) {
         segmentUrls.push(expandTemplate(template.media, { ...values, Number: number, Time: time }));
+        segmentDurations.push(seconds);
         time += Number(entry.d);
         number += 1;
       }
     }
-    return { initUrl, segmentUrls };
+    return { initUrl, segmentDurations, segmentUrls };
   }
 
   const segmentSeconds = Number(template.duration) / timescale;
@@ -112,8 +126,9 @@ export function representationSegments(representation, set, durationSeconds) {
   const count = Math.ceil(durationSeconds / segmentSeconds);
   for (let index = 0; index < count; index += 1) {
     segmentUrls.push(expandTemplate(template.media, { ...values, Number: startNumber + index }));
+    segmentDurations.push(segmentSeconds);
   }
-  return { initUrl, segmentUrls };
+  return { initUrl, segmentDurations, segmentUrls };
 }
 
 // The manifest object here is the plain shape readDashXml produces, so every
@@ -128,11 +143,42 @@ export function selectDashVariants(manifest) {
   return videoSet(manifest)?.representations ?? [];
 }
 
-export function selectDashMedia(manifest, selection) {
+// The cheap precondition for audio-only output: a dedicated audio adaptation
+// set exists for selectDashMedia to pick. Whether its segments resolve stays
+// the download's to report.
+export function hasAudioTrack(manifest) {
+  const audioSet = (manifest.adaptationSets ?? [])
+    .filter((set) => adaptationKind(set) === "audio")[0];
+  return Boolean(audioSet?.representations?.length);
+}
+
+export function selectDashMedia(manifest, selection, { audioOnly = false } = {}) {
   const sets = manifest.adaptationSets ?? [];
   if (!sets.length) throw new Error(t("error_dash_no_streams"));
 
   const audioSets = sets.filter((set) => adaptationKind(set) === "audio");
+
+  // Audio-only output needs the audio adaptation set alone; the video set is
+  // never fetched, so a manifest without one is fine.
+  if (audioOnly) {
+    const chosenAudio = bestRepresentation(audioSets[0]?.representations ?? [], selection);
+    if (!chosenAudio) throw new Error(t("error_audio_only_unavailable"));
+    const segments = representationSegments(
+      chosenAudio,
+      audioSets[0],
+      manifest.durationSeconds
+    );
+    if (!segments.segmentUrls.length) throw new Error(t("error_audio_only_unavailable"));
+    return {
+      audioOnly: true,
+      bitsPerSecond: chosenAudio.bandwidth ?? 0,
+      durationSeconds: manifest.durationSeconds,
+      // The audio track is fragmented MP4; the .m4a name is applied at write time.
+      extension: "mp4",
+      ...segments
+    };
+  }
+
   const chosen = videoSet(manifest);
   if (!chosen) throw new Error(t("error_dash_no_streams"));
 
@@ -167,6 +213,23 @@ export function selectDashMedia(manifest, selection) {
       media.audio = audioSegments;
       media.bitsPerSecond += audio.bandwidth ?? 0;
     }
+  }
+
+  // Subtitle sets are usually a single file the download saves as a sidecar.
+  // A set that cannot be resolved is skipped: it must never fail the video.
+  const textSets = sets.filter((set) => adaptationKind(set) === "text");
+  try {
+    const text = bestRepresentation(textSets[0]?.representations ?? []);
+    const textSegments = text && representationSegments(
+      text,
+      textSets[0],
+      manifest.durationSeconds
+    );
+    if (textSegments?.segmentUrls.length) {
+      media.subtitle = textSegments;
+    }
+  } catch {
+    // Left without subtitles on purpose.
   }
 
   return media;

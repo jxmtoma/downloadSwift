@@ -3,6 +3,7 @@ import {
   adaptationKind,
   carriesBothStreams,
   expandTemplate,
+  hasAudioTrack,
   parseIsoDuration,
   representationSegments,
   selectDashMedia,
@@ -26,6 +27,9 @@ assert.equal(parseIsoDuration("nonsense"), 0);
 
 assert.equal(adaptationKind({ contentType: "video", representations: [] }), "video");
 assert.equal(adaptationKind({ mimeType: "audio/mp4", representations: [] }), "audio");
+assert.equal(adaptationKind({ contentType: "text", representations: [] }), "text");
+assert.equal(adaptationKind({ mimeType: "text/vtt", representations: [] }), "text");
+assert.equal(adaptationKind({ mimeType: "application/ttml+xml", representations: [] }), "text");
 // No contentType and no mimeType: the codec string is the only hint left.
 assert.equal(adaptationKind({ representations: [{ codecs: "avc1.64001f" }] }), "video");
 assert.equal(adaptationKind({ representations: [{ codecs: "mp4a.40.2" }] }), "audio");
@@ -40,6 +44,7 @@ assert.deepEqual(representationSegments(
   10
 ), {
   initUrl: "https://cdn.example/v0/init.mp4",
+  segmentDurations: [4, 4, 4],
   segmentUrls: [
     "https://cdn.example/v0/1.m4s",
     "https://cdn.example/v0/2.m4s",
@@ -71,9 +76,10 @@ assert.deepEqual(representationSegments(
   { initUrl: "https://cdn.example/init.mp4", segmentList: ["https://cdn.example/a.m4s"] },
   {},
   0
-), { initUrl: "https://cdn.example/init.mp4", segmentUrls: ["https://cdn.example/a.m4s"] });
+), { initUrl: "https://cdn.example/init.mp4", segmentDurations: null, segmentUrls: ["https://cdn.example/a.m4s"] });
 assert.deepEqual(representationSegments({ baseUrl: "https://cdn.example/whole.mp4" }, {}, 0), {
   initUrl: null,
+  segmentDurations: null,
   segmentUrls: ["https://cdn.example/whole.mp4"]
 });
 
@@ -168,5 +174,59 @@ assert.throws(() => selectDashMedia({
   adaptationSets: [{ contentType: "video", representations: [{ bandwidth: 1, codecs: "avc1.64001f", id: "v" }] }],
   durationSeconds: 8
 }), /error_dash_unsupported/);
+
+// A subtitle adaptation set comes through as a second stream of files; a video
+// manifest with none still resolves as before.
+const subtitled = selectDashMedia({
+  adaptationSets: [
+    { contentType: "video", representations: [{ bandwidth: 900000, codecs: "avc1.64001f", id: "v", segmentTemplate: template("v") }] },
+    { contentType: "audio", representations: [{ bandwidth: 128000, codecs: "mp4a.40.2", id: "a", segmentTemplate: template("a") }] },
+    { contentType: "text", mimeType: "text/vtt", representations: [{ bandwidth: 256, id: "s", segmentTemplate: template("s") }] }
+  ],
+  durationSeconds: 8
+});
+assert.deepEqual(subtitled.subtitle, {
+  initUrl: "https://cdn.example/s/init.mp4",
+  segmentDurations: [4, 4],
+  segmentUrls: ["https://cdn.example/s/1.m4s", "https://cdn.example/s/2.m4s"]
+});
+assert.equal(selectDashMedia({
+  adaptationSets: [{ contentType: "video", representations: [{ bandwidth: 900000, codecs: "avc1.64001f", id: "v", segmentTemplate: template("v") }] }],
+  durationSeconds: 8
+}).subtitle, undefined);
+
+// Audio-only resolves to the audio adaptation set alone and needs no video set.
+const audioOnlyDash = selectDashMedia({
+  adaptationSets: [
+    { contentType: "video", representations: [{ bandwidth: 900000, codecs: "avc1.64001f", id: "v", segmentTemplate: template("v") }] },
+    { contentType: "audio", representations: [{ bandwidth: 128000, codecs: "mp4a.40.2", id: "a", segmentTemplate: template("a") }] }
+  ],
+  durationSeconds: 8
+}, {}, { audioOnly: true });
+assert.equal(audioOnlyDash.audioOnly, true);
+assert.equal(audioOnlyDash.initUrl, "https://cdn.example/a/init.mp4");
+assert.equal(audioOnlyDash.segmentUrls.length, 2);
+assert.equal(audioOnlyDash.bitsPerSecond, 128000);
+
+// A manifest without an audio set cannot be split.
+assert.throws(() => selectDashMedia({
+  adaptationSets: [{ contentType: "video", representations: [{ bandwidth: 900000, codecs: "avc1.64001f", id: "v", segmentTemplate: template("v") }] }],
+  durationSeconds: 8
+}, {}, { audioOnly: true }), /error_audio_only_unavailable/);
+
+// The popup's precondition probe: an audio adaptation set means the audio-only
+// option can be offered, a video-only manifest means it cannot.
+assert.equal(hasAudioTrack({
+  adaptationSets: [
+    { contentType: "video", representations: [{ bandwidth: 900000, codecs: "avc1.64001f", id: "v", segmentTemplate: template("v") }] },
+    { contentType: "audio", representations: [{ bandwidth: 128000, codecs: "mp4a.40.2", id: "a", segmentTemplate: template("a") }] }
+  ]
+}), true);
+assert.equal(hasAudioTrack({
+  adaptationSets: [{ contentType: "video", representations: [{ bandwidth: 900000, codecs: "avc1.64001f", id: "v", segmentTemplate: template("v") }] }]
+}), false);
+assert.equal(hasAudioTrack({
+  adaptationSets: [{ contentType: "audio", representations: [] }]
+}), false);
 
 console.log("DASH manifest check passed");

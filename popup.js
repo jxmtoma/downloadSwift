@@ -1,7 +1,7 @@
 import { byPlayability, candidateRank, downloadFilename } from "./media.mjs";
 import { formatTimeUntil, localizeDocument, t } from "./i18n.mjs";
-import { createTsTransmuxer, parseHlsVariants } from "./hls.mjs";
-import { readDashXml, selectDashVariants } from "./dash.mjs";
+import { createTsTransmuxer, parseHlsMedia, parseHlsVariants, rangeHeader, selectHlsVariant } from "./hls.mjs";
+import { hasAudioTrack, readDashXml, selectDashVariants } from "./dash.mjs";
 import { getMedia } from "./resolve.mjs";
 import { resolveSiteVariants } from "./sites.mjs";
 import { makePreview, queueForItem, videoDimensions } from "./preview.mjs";
@@ -55,6 +55,7 @@ const qualityCache = new Map();
 const qualityRequests = new Map();
 const qualitySelections = new Map();
 const filenameEdits = new Map();
+const audioOnlySelections = new Map();
 const resourceTextCache = new Map();
 
 const storageKey = () => `media:${currentTabId}`;
@@ -97,13 +98,18 @@ function hostFromUrl(rawUrl) {
   }
 }
 
+function streamFilename(pageTitle, item) {
+  const base = downloadFilename(pageTitle, { format: "MP4", name: "video.mp4" });
+  return audioOnlySelections.get(item.url)
+    ? `${base.replace(/\.[^.]+$/, "")}.m4a`
+    : base;
+}
+
 function visibleFilename(item, job) {
   if (job?.filename) return job.filename;
   const pageTitle = job?.pageTitle ?? currentTabTitle;
   if (item.kind === "file") return downloadFilename(pageTitle, item);
-  if (item.format === "HLS" || item.format === "DASH") {
-    return downloadFilename(pageTitle, { format: "MP4", name: "video.mp4" });
-  }
+  if (item.format === "HLS" || item.format === "DASH") return streamFilename(pageTitle, item);
   return item.name;
 }
 
@@ -126,10 +132,14 @@ async function copyUrl(item, button) {
 async function startDownload(item, pageTitle = currentTabTitle, selection, editedFilename) {
   const jobId = crypto.randomUUID();
   const key = `download-job:${jobId}`;
-  const filename = downloadFilename(
+  let filename = downloadFilename(
     editedFilename?.trim() || pageTitle,
     item.kind === "file" ? item : { format: "MP4", name: "video.mp4" }
   );
+  // Audio-only writes the same fragmented track under an audio extension.
+  if (selection?.audioOnly && item.kind !== "file") {
+    filename = `${filename.replace(/\.[^.]+$/, "")}.m4a`;
+  }
   const job = {
     createdAt: Date.now(),
     filename,
@@ -265,6 +275,27 @@ function addQualityPicker(item, qualities, actions, disabled = false) {
   return picker;
 }
 
+// Audio-only output needs the master to keep audio in its own rendition group
+// and that rendition to be fragmented MP4 — the same conditions resolve.mjs
+// enforces, evaluated here so the popup can grey the option out up front.
+// Anything uncertain (a rendition that cannot be fetched or parsed here) counts
+// as available and leaves the download as the final judge.
+async function hlsAudioAvailable(item, selection, masterText) {
+  const selected = selectHlsVariant(masterText, item.url, selection.variantUrl, selection.variantIndex);
+  if (!selected.audioUrl) return false;
+  try {
+    const armed = await armPreview(item, [new URL(selected.audioUrl).hostname]);
+    try {
+      const audio = parseHlsMedia(await readText(selected.audioUrl), selected.audioUrl);
+      return audio.extension !== "ts" && audio.segmentUrls.length > 0;
+    } finally {
+      if (armed?.ok) await disarmPreview(item, armed.ruleId);
+    }
+  } catch {
+    return true;
+  }
+}
+
 async function streamQualities(item) {
   const armed = await armPreview(item, undefined, true);
   if (!armed?.ok) return [];
@@ -273,6 +304,7 @@ async function streamQualities(item) {
     if (item.adapter) {
       return (await resolveSiteVariants(item, readJson))
         .map((variant, index) => ({
+          audioAvailable: false,
           bandwidth: Number(variant.bandwidth) || 0,
           height: Number(variant.height) || undefined,
           index,
@@ -286,18 +318,36 @@ async function streamQualities(item) {
 
     const text = await readText(item.url);
     if (item.format === "HLS") {
-      return parseHlsVariants(text, item.url)
+      const variants = parseHlsVariants(text, item.url)
         .map((variant) => ({
           ...variant,
           selection: { variantIndex: variant.index, variantUrl: variant.url }
         }))
         .sort(byPlayability);
+      if (!variants.length) {
+        // A bare media playlist is its own track: it keeps audio muxed into its
+        // segments and offers no rendition a separate download could pick, so
+        // the option is decided here rather than left to fail at download time.
+        return [{
+          audioAvailable: await hlsAudioAvailable(item, {}, text),
+          selection: {}
+        }];
+      }
+      // Audio availability follows the AUDIO group of the chosen variant, and
+      // variants can name different groups, so each entry carries its own.
+      for (const variant of variants) {
+        variant.audioAvailable = await hlsAudioAvailable(item, variant.selection, text);
+      }
+      return variants;
     }
 
     const manifest = readDashXml(text, item.url, DOMParser);
+    // DASH availability is a manifest property, not a per-representation one.
+    const audioAvailable = hasAudioTrack(manifest);
     return selectDashVariants(manifest)
       .map((variant, index) => ({
         ...variant,
+        audioAvailable,
         index,
         selection: {
           representationId: variant.id,
@@ -368,13 +418,22 @@ async function streamPreviewBlob(item) {
       false
     );
 
-    // Independent of each other, and the round trip to a CDN is most of what a
-    // small init segment costs.
+    // Byte-range streams keep every segment inside one resource, so the opening
+    // slice is requested through the same ranges the download itself uses. The
+    // two reads are independent of each other, and the round trip to a CDN is
+    // most of what a small init segment costs.
     const [init, segment] = await Promise.all([
-      media.initUrl ? readBytes(media.initUrl) : null,
-      readBytes(media.segmentUrls[0])
+      media.initUrl
+        ? readBytes(media.initUrl, media.initRange
+          ? { Range: rangeHeader(media.initRange) }
+          : undefined)
+        : null,
+      readBytes(media.segmentUrls[0], media.segmentRanges?.[0]
+        ? { Range: rangeHeader(media.segmentRanges[0]) }
+        : undefined)
     ]);
-    const parts = init ? [init] : [];
+    const parts = [];
+    if (init) parts.push(init);
     if (media.extension === "mp4") {
       parts.push(segment);
     } else {
@@ -582,6 +641,41 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
       meta.append(size);
     }
 
+    // Site adapters resolve to one whole file per track, which cannot be split
+    // into audio on its own, so the option only shows for playlist streams.
+    // The quality probe records whether a separate audio track actually exists;
+    // until it has, the checkbox stays as it is and the download stays judge.
+    let audioOnlyOption = null;
+    if (selectedView === "detected" && !jobActive && !item.adapter
+      && (item.format === "HLS" || item.format === "DASH")) {
+      const probed = qualityCache.get(item.url)
+        ?.[Number(qualitySelections.get(item.url) ?? 0)];
+      const audioUnavailable = probed?.audioAvailable === false;
+      if (audioUnavailable && audioOnlySelections.get(item.url)) {
+        audioOnlySelections.set(item.url, false);
+        if (name.type === "text" && !filenameEdits.has(item.url)) {
+          name.value = visibleFilename(item, job);
+        }
+      }
+      audioOnlyOption = document.createElement("label");
+      audioOnlyOption.className = audioUnavailable
+        ? "audio-only-option unavailable"
+        : "audio-only-option";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = Boolean(audioOnlySelections.get(item.url));
+      checkbox.disabled = audioUnavailable;
+      if (audioUnavailable) audioOnlyOption.title = t("error_audio_only_unavailable");
+      checkbox.addEventListener("change", () => {
+        audioOnlySelections.set(item.url, checkbox.checked);
+        // The suggested filename follows the choice, unless it was edited by hand.
+        if (name.type === "text" && !filenameEdits.has(item.url)) {
+          name.value = visibleFilename(item, job);
+        }
+      });
+      audioOnlyOption.append(checkbox, document.createTextNode(t("audio_only")));
+    }
+
     const host = document.createElement("div");
     host.className = "media-host";
     host.textContent = hostFromUrl(item.url);
@@ -638,7 +732,10 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
           await startDownload(
             item,
             job?.pageTitle,
-            qualities?.[qualityPicker?.selectedIndex ?? 0]?.selection,
+            {
+              ...qualities?.[qualityPicker?.selectedIndex ?? 0]?.selection,
+              ...audioOnlySelections.get(item.url) ? { audioOnly: true } : {}
+            },
             name.value
           );
           await selectView("downloading");
@@ -678,7 +775,9 @@ function renderItems(items, jobs = [], previews = new Map(), estimates = new Map
     });
     actions.append(copy);
 
-    details.append(name, meta, host);
+    details.append(name, meta);
+    if (audioOnlyOption) details.append(audioOnlyOption);
+    details.append(host);
     row.append(format, details, actions);
 
     if (job) {

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.6.0 — 2026-09-04
+
+- Download byte-range HLS streams: segments that occupy ranges of one shared
+  resource (RFC 8216 §4.3.2.2) are fetched with their exact `Range` header —
+  explicit or chained-implicit offsets, plus initialization-segment ranges —
+  and previews read the same opening slices. Streams whose byte ranges span
+  discontinuities or changing initialization segments are still declined, since
+  the merged file's sample tables would not match the media.
+- Save a stream's subtitles as a sidecar file next to the video. HLS subtitle
+  renditions are fetched segment by segment and joined into one WebVTT file —
+  cues re-timed onto a single timeline and cues a player carries across a
+  segment boundary written once — while DASH text sets are saved as the single
+  file they usually are. A subtitle rendition that cannot be read never costs
+  the video. On Safari the file saves from the same page as the video.
+- Add an audio-only download for streams that keep their audio in a separate
+  rendition: the checkbox writes the audio track as `.m4a` and skips the video
+  entirely, for both HLS masters with an `EXT-X-MEDIA` audio group and DASH
+  manifests with an audio adaptation set. The checkbox is greyed out with an
+  explanation when the selected stream has no separate audio track to save,
+  instead of failing at download time.
+
 ## 0.5.0 — 2026-08-29
 
 - Let users choose an available HLS or DASH video quality before downloading,

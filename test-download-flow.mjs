@@ -610,4 +610,187 @@ for (const track of tracks) {
     .getUint32(sizes.body + 8) > 0, "each track has samples");
 }
 
+// A stream with a subtitle rendition gets a sidecar .vtt written next to the
+// video: the segments are fetched, joined onto one timeline, and offered to the
+// worker as a plain download that job completion ignores.
+const preparedWaiters = new Map();
+const waitFor = (jobId, type) => new Promise((resolve) => {
+  preparedWaiters.set(`${jobId}:${type}`, resolve);
+});
+chrome.runtime.sendMessage = async (message) => {
+  sentMessages.push(message);
+  preparedWaiters.get(`${message.jobId}:${message.type}`)?.(message);
+  return { ok: true };
+};
+
+const subtitledPlaylist = [
+  "#EXTM3U",
+  "#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subs\",NAME=\"English\",DEFAULT=YES,URI=\"subs.m3u8\"",
+  "#EXT-X-STREAM-INF:BANDWIDTH=2400000,SUBTITLES=\"subs\"",
+  "subs-video.m3u8"
+].join("\n");
+const vttSegments = [
+  "WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nOne",
+  "WEBVTT\n\n00:00:02.000 --> 00:00:04.000\nTwo"
+];
+globalThis.fetch = async (url) => {
+  if (url.endsWith("subs-master.m3u8")) return new Response(subtitledPlaylist);
+  if (url.endsWith("subs-video.m3u8")) {
+    return new Response("#EXTM3U\n#EXTINF:4,\nseg0.m4s\n#EXT-X-ENDLIST");
+  }
+  if (url.endsWith("subs.m3u8")) {
+    return new Response("#EXTM3U\n#EXTINF:4,\nsub0.vtt\n#EXTINF:4,\nsub1.vtt\n#EXT-X-ENDLIST");
+  }
+  if (url.endsWith(".vtt")) {
+    return new Response(vttSegments[Number(url.match(/sub(\d+)\.vtt/)[1])]);
+  }
+  return new Response(new Uint8Array([9]));
+};
+
+runtimeListeners[1]({
+  job: {
+    filename: "Subtitled video.mp4",
+    id: "offscreen-subtitles",
+    item: { format: "HLS", kind: "playlist", url: "https://cdn.example/subs-master.m3u8" },
+    pageTitle: "Subtitled video",
+    tabId: 5
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+const sidecarMessage = await waitFor("offscreen-subtitles", "sidecar-ready");
+
+assert.equal(sidecarMessage.filename, "Subtitled video.vtt");
+assert.equal(sidecarMessage.type, "sidecar-ready");
+assert.equal(new TextDecoder().decode(bytesFor("downloadswift-offscreen-subtitles.vtt").bytes), [
+  "WEBVTT",
+  "",
+  "00:00:00.000 --> 00:00:02.000",
+  "One",
+  "",
+  "00:00:06.000 --> 00:00:08.000",
+  "Two",
+  ""
+].join("\n"));
+assert.equal(
+  sentMessages.find((message) => message.type === "hls-progress"
+    && message.jobId === "offscreen-subtitles"
+    && message.changes.subtitleTempName).changes.subtitleFilename,
+  "Subtitled video.vtt",
+  "Safari reads the sidecar's name out of the job"
+);
+
+// Audio-only skips the video merge and writes the audio track as .m4a.
+globalThis.fetch = async (url) => {
+  if (url.endsWith("audio-master.m3u8")) {
+    return new Response([
+      "#EXTM3U",
+      "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"a\",NAME=\"English\",DEFAULT=YES,URI=\"audio.m3u8\"",
+      "#EXT-X-STREAM-INF:BANDWIDTH=2400000,AUDIO=\"a\"",
+      "video.m3u8"
+    ].join("\n"));
+  }
+  if (url.endsWith("audio.m3u8")) {
+    // No init segment: the raw bytes pass through to the .m4a untouched.
+    return new Response("#EXTM3U\n#EXTINF:4,\naudio-0.mp4\n#EXT-X-ENDLIST");
+  }
+  return new Response(new Uint8Array([7, 7]));
+};
+
+runtimeListeners[1]({
+  job: {
+    filename: "Audio only.mp4",
+    id: "offscreen-audio",
+    item: {
+      audioOnly: true,
+      format: "HLS",
+      kind: "playlist",
+      url: "https://cdn.example/audio-master.m3u8"
+    },
+    pageTitle: "Audio only",
+    tabId: 5
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+const audioMessage = await waitFor("offscreen-audio", "download-ready");
+
+assert.equal(audioMessage.filename, "Audio only.m4a");
+assert.deepEqual(
+  [...bytesFor("downloadswift-offscreen-audio.m4a").bytes],
+  [7, 7],
+  "the .m4a holds the audio rendition's bytes, not the video's"
+);
+
+// Byte-range HLS: every segment is a slice of one resource, fetched with its
+// exact Range header, and the slices land in playlist order in the file.
+const rangeResource = new Uint8Array(1000).map((_, index) => index % 251);
+const rangePlaylist = [
+  "#EXTM3U",
+  "#EXTINF:4,",
+  "#EXT-X-BYTERANGE:100@200",
+  "range-seg-0.mp4",
+  "#EXTINF:4,",
+  "#EXT-X-BYTERANGE:100",
+  "range-seg-1.mp4",
+  "#EXT-X-ENDLIST"
+].join("\n");
+const rangeRequests = [];
+globalThis.fetch = async (url, options = {}) => {
+  if (url.endsWith("range.m3u8")) return new Response(rangePlaylist);
+  rangeRequests.push({ range: options.headers?.Range, url });
+  const match = /bytes=(\d+)-(\d+)/.exec(options.headers?.Range ?? "");
+  if (match) {
+    const start = Number(match[1]);
+    return new Response(rangeResource.slice(start, Number(match[2]) + 1));
+  }
+  return new Response(rangeResource);
+};
+
+runtimeListeners[1]({
+  job: {
+    filename: "Byte range.mp4",
+    id: "offscreen-range",
+    item: { format: "HLS", kind: "playlist", url: "https://cdn.example/range.m3u8" },
+    pageTitle: "Byte range",
+    tabId: 5
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+const rangeMessage = await waitFor("offscreen-range", "download-ready");
+
+assert.equal(rangeMessage.filename, "Byte range.mp4");
+// The first range is explicit; the second chains implicitly from its end.
+assert.deepEqual(rangeRequests.map((request) => request.range), [
+  "bytes=200-299",
+  "bytes=300-399"
+]);
+assert.deepEqual(
+  [...bytesFor("downloadswift-offscreen-range.mp4").bytes],
+  [...rangeResource.slice(200, 300), ...rangeResource.slice(300, 400)]
+);
+
+// A sidecar download's completion must not touch the job machinery.
+const sidecarDownloadResponse = await new Promise((resolve) => {
+  runtimeListeners[0]({
+    filename: "Subtitled video.vtt",
+    jobId: "any",
+    target: "service-worker",
+    type: "sidecar-ready",
+    url: "blob:chrome-extension://test/subs"
+  }, null, resolve);
+});
+assert.equal(sidecarDownloadResponse.ok, true);
+assert.deepEqual(options, {
+  conflictAction: "uniquify",
+  filename: "Subtitled video.vtt",
+  saveAs: false,
+  url: "blob:chrome-extension://test/subs"
+});
+options = undefined;
+downloadListeners[0]({ id: 8, state: { current: "complete" } });
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(options, undefined, "a sidecar completion is not stashed for a job mapping");
+
 console.log("managed and direct download flow check passed");

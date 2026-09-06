@@ -1,4 +1,4 @@
-import { createTsTransmuxer, parseHlsMedia, selectHlsVariant } from "./hls.mjs";
+import { combineVttSegments, createTsTransmuxer, parseHlsMedia, rangeHeader, selectHlsVariant } from "./hls.mjs";
 import {
   boxes,
   combineInitSegments,
@@ -65,14 +65,19 @@ async function fetchResource(url, signal, headers) {
   }
 }
 
+// The exact request a byte-range segment needs; undefined for whole resources.
+const rangeHeaders = (range) => (range ? { Range: rangeHeader(range) } : undefined);
+
 // Keeps SEGMENT_LOOKAHEAD fetches in flight while segments are consumed in order.
-async function* fetchSegments(urls, signal) {
+// Byte-range playlists fetch every segment from one resource, each with its own
+// exact range; null entries are whole resources and go without a Range header.
+async function* fetchSegments(urls, signal, ranges = null) {
   const pending = [];
   let next = 0;
 
   const fill = () => {
     while (pending.length < SEGMENT_LOOKAHEAD && next < urls.length) {
-      const segment = fetchResource(urls[next], signal)
+      const segment = fetchResource(urls[next], signal, rangeHeaders(ranges?.[next]))
         .then(async (response) => new Uint8Array(await response.arrayBuffer()));
       // Marks the rejection handled; it still surfaces when the segment is awaited in order.
       segment.catch(() => {});
@@ -229,9 +234,14 @@ async function cleanup(jobId) {
   if (!active) return;
 
   URL.revokeObjectURL(active.url);
+  if (active.sidecarUrl) URL.revokeObjectURL(active.sidecarUrl);
   activeFiles.delete(jobId);
   const root = await navigator.storage.getDirectory();
   await root.removeEntry(active.tempName).catch(() => {});
+  if (active.sidecarTempName) {
+    await root.removeEntry(active.sidecarTempName).catch(() => {});
+    liveTempNames.delete(active.sidecarTempName);
+  }
   liveTempNames.delete(active.tempName);
 }
 
@@ -251,7 +261,7 @@ export async function sweepTempFiles() {
   const stored = await api.storage.session.get(null).catch(() => ({}));
   const claimed = new Set(Object.entries(stored)
     .filter(([key]) => key.startsWith("download-job:"))
-    .map(([, job]) => job?.tempName)
+    .flatMap(([, job]) => [job?.tempName, job?.subtitleTempName])
     .filter(Boolean));
 
   const root = await navigator.storage.getDirectory();
@@ -295,6 +305,83 @@ async function offerDownload(job, handle, tempName, filename) {
   if (!accepted?.ok) throw new Error(accepted?.error || t("error_chrome_save"));
 }
 
+// Subtitles are a sidecar file, not a muxed track: the segments are whole
+// WebVTT files that get joined into one. Built and written before the video is
+// offered, so a save page sees both files the moment it reads the job. Any
+// failure here only means no subtitles — the video itself is already done.
+async function prepareSubtitleSidecar(job, media, signal) {
+  if (!media.subtitle?.segmentUrls?.length) return null;
+
+  try {
+    const decoder = new TextDecoder();
+    const segments = [];
+    for await (const bytes of fetchSegments(
+      media.subtitle.segmentUrls,
+      signal,
+      media.subtitle.segmentRanges ?? null
+    )) {
+      segments.push(decoder.decode(bytes));
+    }
+
+    let extension;
+    let text;
+    if (segments.every((segment) => segment.trimStart().startsWith("WEBVTT"))) {
+      text = combineVttSegments(segments, media.subtitle.segmentDurations ?? []);
+      extension = ".vtt";
+    } else if (segments.length === 1) {
+      // A single TTML or other XML subtitle file is saved untouched.
+      text = segments[0];
+      extension = `.${(/\.(vtt|ttml|xml|dfxp)(?:$|\?)/i.exec(media.subtitle.segmentUrls[0])?.[1] ?? "ttml").toLowerCase()}`;
+    } else {
+      // Fragmented TTML needs XML-level merging, which is not supported.
+      return null;
+    }
+    if (!text.trim()) return null;
+
+    const root = await navigator.storage.getDirectory();
+    const tempName = `${TEMP_PREFIX}${job.id}${extension}`;
+    liveTempNames.add(tempName);
+    const handle = await root.getFileHandle(tempName, { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(new TextEncoder().encode(text));
+    await writable.close();
+    return {
+      extension,
+      file: await handle.getFile(),
+      mime: extension === ".vtt" ? "text/vtt" : "application/ttml+xml",
+      tempName
+    };
+  } catch (error) {
+    if (error.name === "AbortError") throw error;
+    console.error("DownloadSwift:", error);
+    return null;
+  }
+}
+
+// The video's save rides the job machinery; the sidecar is a plain download
+// that job completion ignores. Browsers without the downloads API (Safari)
+// learn the file's name through the job and save it from the page instead.
+async function dispatchSubtitleSidecar(job, sidecar, filename) {
+  const subtitleFilename = `${filename.replace(/\.[^.]+$/, "")}${sidecar.extension}`;
+  const active = activeFiles.get(job.id);
+  const url = active
+    ? (active.sidecarTempName = sidecar.tempName,
+      active.sidecarUrl = URL.createObjectURL(
+        sidecar.file.slice(0, sidecar.file.size, sidecar.mime)
+      ))
+    : null;
+
+  await report(job.id, { subtitleFilename, subtitleTempName: sidecar.tempName });
+  if (!url) return;
+  await sendToServiceWorker({
+    filename: subtitleFilename,
+    jobId: job.id,
+    target: "service-worker",
+    type: "sidecar-ready",
+    url
+  }).catch((error) => console.error("DownloadSwift:", error));
+}
+
 async function runHlsJob(job) {
   const controller = new AbortController();
   controllers.set(job.id, controller);
@@ -302,6 +389,7 @@ async function runHlsJob(job) {
   let tempName;
   let staging = null;
   let stagingName;
+  let sidecar = null;
 
   try {
     await report(job.id, {
@@ -322,7 +410,8 @@ async function runHlsJob(job) {
         media.video?.url,
         media.audio?.url,
         media.audio?.initUrl,
-        ...media.audio?.segmentUrls ?? []
+        ...media.audio?.segmentUrls ?? [],
+        ...media.subtitle?.segmentUrls ?? []
       ]
         .filter(Boolean)
         .map((url) => new URL(url).hostname))],
@@ -331,7 +420,7 @@ async function runHlsJob(job) {
       type: "extend-headers"
     });
     const root = await navigator.storage.getDirectory();
-    tempName = `${TEMP_PREFIX}${job.id}.mp4`;
+    tempName = `${TEMP_PREFIX}${job.id}${media.audioOnly ? ".m4a" : ".mp4"}`;
     liveTempNames.add(tempName);
     const handle = await root.getFileHandle(tempName, { create: true });
     writable = await handle.createWritable();
@@ -391,8 +480,8 @@ async function runHlsJob(job) {
       ], tracked, controller.signal, onBytes);
     } else if (media.audio) {
       const [videoInit, audioInit] = await Promise.all([
-        readBytes(media.initUrl, controller.signal),
-        readBytes(media.audio.initUrl, controller.signal)
+        readBytes(media.initUrl, controller.signal, rangeHeaders(media.initRange)),
+        readBytes(media.audio.initUrl, controller.signal, rangeHeaders(media.audio.initRange))
       ]);
       const combined = combineInitSegments(videoInit, audioInit, media.durationSeconds);
       mux = { ...combined, sequence: 0 };
@@ -400,12 +489,12 @@ async function runHlsJob(job) {
     } else if (!transmux && media.initUrl) {
       output = await createProgressiveOutput(
         writable,
-        await readBytes(media.initUrl, controller.signal),
+        await readBytes(media.initUrl, controller.signal, rangeHeaders(media.initRange)),
         staging
       );
     }
 
-    for await (const bytes of fetchSegments(media.segmentUrls, controller.signal)) {
+    for await (const bytes of fetchSegments(media.segmentUrls, controller.signal, media.segmentRanges ?? null)) {
       written += 1;
       const progress = Math.round((written / total) * 90);
       // Every report is a message plus a session-storage write plus a popup re-render,
@@ -430,7 +519,11 @@ async function runHlsJob(job) {
         if (audioUrl) {
           mux.sequence += 1;
           await output.addSegment(renumberFragment(
-            await readBytes(audioUrl, controller.signal),
+            await readBytes(
+              audioUrl,
+              controller.signal,
+              rangeHeaders(media.audio.segmentRanges?.[written - 1])
+            ),
             mux.audioTrackId,
             mux.sequence
           ));
@@ -465,11 +558,17 @@ async function runHlsJob(job) {
       liveTempNames.delete(stagingName);
       staging = null;
     }
-    const filename = job.filename || downloadFilename(
-      media.title || job.pageTitle,
-      { format: "MP4", name: "video.mp4" }
-    );
-    await offerDownload(job, handle, tempName, filename);
+    const filename = job.filename
+      || downloadFilename(media.title || job.pageTitle, { format: "MP4", name: "video.mp4" });
+    // Audio-only output is the same fragmented MP4 track under an audio name.
+    const outputFilename = media.audioOnly
+      ? filename.replace(/\.[^.]+$/, ".m4a")
+      : filename;
+    // Subtitles are fetched and joined before the video is offered: a save page
+    // then reads both files from a job that is already finished writing.
+    sidecar = await prepareSubtitleSidecar(job, media, controller.signal);
+    await offerDownload(job, handle, tempName, outputFilename);
+    if (sidecar) await dispatchSubtitleSidecar(job, sidecar, outputFilename);
   } catch (error) {
     if (writable) await writable.abort().catch(() => {});
     if (staging) await staging.writable.abort().catch(() => {});
@@ -481,6 +580,10 @@ async function runHlsJob(job) {
     if (root && tempName && !activeFiles.has(job.id)) {
       await root.removeEntry(tempName).catch(() => {});
       liveTempNames.delete(tempName);
+    }
+    if (root && sidecar && !activeFiles.has(job.id)) {
+      await root.removeEntry(sidecar.tempName).catch(() => {});
+      liveTempNames.delete(sidecar.tempName);
     }
     await report(job.id, error.name === "AbortError"
       ? { error: null, estimatedEndTime: null, state: "canceled", status: t("status_canceled") }

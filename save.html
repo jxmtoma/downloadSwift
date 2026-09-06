@@ -22,7 +22,7 @@
         width: 100%;
       }
       p { margin: 0; text-align: center; }
-      #save {
+      #save, #save-subtitles {
         background: #0a68ff;
         border-radius: 8px;
         color: #fff;
@@ -31,13 +31,19 @@
         padding: 10px 22px;
         text-decoration: none;
       }
-      #save[hidden], video[hidden] { display: none; }
+      #save-subtitles {
+        background: #e2e8f0;
+        color: var(--text, #0f172a);
+        font-size: 14px;
+      }
+      #save[hidden], #save-subtitles[hidden], video[hidden] { display: none; }
     </style>
   </head>
   <body>
     <p id="status" data-i18n="status_ready_to_save"></p>
     <video id="preview" controls playsinline hidden></video>
     <a id="save" data-i18n="save" hidden></a>
+    <a id="save-subtitles" data-i18n="save_subtitles" hidden></a>
     <script type="module" src="save.js"></script>
   </body>
 </html>
