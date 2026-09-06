@@ -60,7 +60,10 @@ npx --yes web-ext@10 lint --source-dir dist/firefox
 The script produces `dist/downloadswift-<version>.zip` for Chrome and Edge and
 browser-specific `dist/downloadswift-firefox-<version>.zip` and
 `dist/downloadswift-safari-<version>.zip` packages. It also builds
-`dist/downloadswift-firefox-source-<version>.zip` for AMO's source-code review.
+`dist/downloadswift-firefox-source-<version>.zip` for AMO's source-code review,
+and keeps only the current and the previous version's packages in `dist/`,
+deleting older ones and artifacts left by past naming schemes. `dist/` is
+untracked; the repository tags are the real release history.
 
 Only `downloadswift-firefox-<version>.zip` goes to addons.mozilla.org as the
 add-on file — it is the only package whose manifest carries the required

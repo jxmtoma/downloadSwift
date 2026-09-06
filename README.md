@@ -140,7 +140,9 @@ What the script does: copies the shared source files, generates the Firefox
 manifest from `manifest.json` with `scripts/browser-manifest.mjs` (which swaps
 the service worker for a background page, removes the permissions Firefox cannot
 use, and adds `browser_specific_settings`), then creates and verifies each
-browser package plus a source archive from the current non-ignored source tree.
+browser package plus a source archive from the current non-ignored source tree,
+and keeps only the current and the previous version's packages in `dist/`,
+deleting older ones so the folder does not accumulate every release.
 
 **Comparing against the submitted package.** Two builds of the same source
 produce byte-identical *contents* but different ZIP bytes, because zip records

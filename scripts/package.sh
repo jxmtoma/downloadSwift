@@ -45,3 +45,7 @@ package_background_browser() {
 echo "$archive"
 package_background_browser firefox
 package_background_browser safari
+
+# dist/ is a staging area, not an archive: keep the current and the previous
+# version's packages so the folder survives release after release.
+node scripts/prune-packages.mjs
