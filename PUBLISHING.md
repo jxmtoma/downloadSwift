@@ -4,16 +4,18 @@
 
 Video & Media Downloader saves direct HTTPS MP4/WebM/MOV/M4V files and supported
 unencrypted, on-demand HTTPS HLS and DASH streams locally, including HLS with
-separate fMP4 audio tracks. It does not support insecure HTTP media, YouTube,
-DRM, encrypted or live HLS, byte-range HLS, separate TS audio/video tracks,
-paywall bypassing, or access-control bypassing. On-demand DASH is supported,
-including manifests that keep audio and video apart, whose tracks are merged
-into one movie.
+separate fMP4 audio tracks, byte-range HLS playlists, subtitles saved as a
+WebVTT sidecar next to the video, and audio-only downloads where a stream keeps
+its audio in a separate rendition. It does not support insecure HTTP media,
+YouTube, DRM, encrypted or live streams, discontinuous byte-range HLS, separate
+TS audio/video tracks, paywall bypassing, or access-control bypassing. On-demand
+DASH is supported, including manifests that keep audio and video apart, whose
+tracks are merged into one movie.
 
 Suggested short description:
 
 > Save direct HTTPS video files and unencrypted HLS and DASH streams locally
-> with progress, MP4 output, and no tracking.
+> with quality choice, subtitles, audio-only, MP4 output, and no tracking.
 
 Suggested listing introduction:
 
@@ -22,7 +24,8 @@ Suggested listing introduction:
 > and DASH streams download with progress, cancellation, sensible filenames,
 > background continuation, quality selection, and clear completion status. HLS
 > playlists with separate fMP4 audio tracks and DASH manifests with separate
-> audio and video are merged into one MP4.
+> audio and video are merged into one MP4, subtitles save as a WebVTT sidecar
+> next to the video, and an audio-only rendition can be saved on its own.
 
 Required listing disclosure:
 
@@ -56,7 +59,15 @@ npx --yes web-ext@10 lint --source-dir dist/firefox
 
 The script produces `dist/downloadswift-<version>.zip` for Chrome and Edge and
 browser-specific `dist/downloadswift-firefox-<version>.zip` and
-`dist/downloadswift-safari-<version>.zip` packages.
+`dist/downloadswift-safari-<version>.zip` packages. It also builds
+`dist/downloadswift-firefox-source-<version>.zip` for AMO's source-code review.
+
+Only `downloadswift-firefox-<version>.zip` goes to addons.mozilla.org as the
+add-on file — it is the only package whose manifest carries the required
+`browser_specific_settings.gecko.id`. The source package sits on the shared
+repository tree, whose root manifest is the Chrome one without that ID, so
+uploading it as the add-on fails AMO's "add-on ID is required in Manifest
+Version 3" check. Attach the source package only when a reviewer asks for it.
 
 The 0.5.0 packages merged into `main` have been submitted to the Chrome Web
 Store, Microsoft Edge Add-ons, and Mozilla Add-ons and are pending review. This
@@ -174,7 +185,8 @@ and [temporary installation](https://developer.apple.com/documentation/safariser
 ## Firefox Add-ons
 
 The public listing is [Video & Media Downloader on Mozilla Add-ons](https://addons.mozilla.org/addon/video-media-downloader/).
-Version 0.5.0 has been submitted and is pending review.
+Version 0.5.0 has been submitted and is pending review; this tree prepares the
+0.6.0 release for the next upload.
 
 ### Account, test, and upload
 
@@ -250,8 +262,9 @@ Run the packaging script from the exact release tag or clean source tree:
 sh scripts/package.sh
 ```
 
-Upload the generated `dist/downloadswift-source-<version>.zip` as the AMO source
-code package.
+Upload the generated `dist/downloadswift-firefox-source-<version>.zip` as the AMO source
+code package — attached only when a reviewer requests it, never as the add-on
+file itself (its Chrome-style root manifest has no add-on ID).
 
 AMO requires the archive to carry step-by-step build instructions, a build
 script, operating-system and build-environment requirements, and the required
@@ -335,11 +348,12 @@ Each description below exceeds Edge's 250-character minimum.
 > direct HTTPS MP4, WebM, MOV, and M4V files or compatible unencrypted,
 > on-demand HLS and DASH streams with progress, an estimated completion time,
 > cancellation, sensible filenames, background continuation, and clear
-> completion status. HLS and DASH output is saved as MP4, and a DASH manifest
-> that keeps audio in its own track has both streams merged into one movie.
-> YouTube, DRM, encrypted or live streams, paywall bypassing, and access-control
-> bypassing are not supported. Download only media you own or have permission to
-> save.
+> completion status. HLS and DASH output is saved as MP4: separate audio tracks
+> are merged into one movie, subtitles are saved as a WebVTT sidecar next to
+> the video, an audio-only rendition can be saved on its own, and byte-range
+> HLS playlists are supported. YouTube, DRM, encrypted or live streams, paywall
+> bypassing, and access-control bypassing are not supported. Download only
+> media you own or have permission to save.
 
 #### Español (`es`)
 
@@ -350,10 +364,12 @@ Each description below exceeds Edge's 250-character minimum.
 > compatibles, sin cifrar y bajo demanda. Muestra el progreso y el tiempo
 > estimado restante, permite cancelar la descarga, crea nombres de archivo
 > claros, continúa trabajando en segundo plano y muestra claramente el estado
-> final. Las transmisiones HLS y DASH se guardan como MP4 y, si un manifiesto
-> DASH mantiene el audio en una pista aparte, ambas pistas se combinan en un
-> solo archivo. No se admiten YouTube, DRM, transmisiones cifradas o en directo,
-> evasión de muros de pago ni de controles de acceso. Descarga únicamente
+> final. Las transmisiones HLS y DASH se guardan como MP4: las pistas de audio
+> separadas se combinan en un solo archivo, los subtítulos se guardan como un
+> archivo WebVTT junto al vídeo, una pista solo de audio puede guardarse por sí
+> misma y se admiten listas HLS por rangos de bytes. No se admiten YouTube,
+> DRM, transmisiones cifradas o en directo, evasión de muros de pago ni de
+> controles de acceso. Descarga únicamente
 > contenido que poseas o que tengas permiso para guardar.
 
 #### Français (`fr`)
@@ -365,9 +381,11 @@ Each description below exceeds Edge's 250-character minimum.
 > demande compatibles et non chiffrés. L'extension affiche la progression et le
 > temps restant estimé, permet d'annuler un téléchargement, crée des noms de
 > fichiers clairs, poursuit les téléchargements en arrière-plan et affiche
-> clairement l'état final. Les flux HLS et DASH sont enregistrés au format MP4
-> et, lorsqu'un manifeste DASH garde l'audio sur une piste distincte, les deux
-> pistes sont fusionnées en un seul fichier. YouTube, les DRM, les flux chiffrés
+> clairement l'état final. Les flux HLS et DASH sont enregistrés au format MP4 :
+> les pistes audio séparées sont fusionnées en un seul fichier, les sous-titres
+> sont enregistrés dans un fichier WebVTT à côté de la vidéo, une piste audio
+> seule peut être enregistrée seule et les listes HLS par plages d'octets sont
+> prises en charge. YouTube, les DRM, les flux chiffrés
 > ou en direct, ainsi que le contournement des péages ou des contrôles d'accès ne
 > sont pas pris en charge. Téléchargez uniquement les médias que vous possédez ou
 > que vous êtes autorisé à enregistrer.
@@ -381,9 +399,10 @@ Each description below exceeds Edge's 250-character minimum.
 > On-Demand-Streams über HLS und DASH herunter. Die Erweiterung zeigt Fortschritt
 > und geschätzte Restzeit an, ermöglicht das Abbrechen, erstellt verständliche
 > Dateinamen, setzt Downloads im Hintergrund fort und zeigt den Abschlussstatus
-> an. HLS- und DASH-Inhalte werden als MP4 gespeichert; hält ein DASH-Manifest
-> den Ton in einer eigenen Spur, werden beide Spuren zu einer Datei
-> zusammengeführt. YouTube, DRM, verschlüsselte oder Live-Streams sowie das
+> an. HLS- und DASH-Inhalte werden als MP4 gespeichert: getrennte Tonspuren
+> werden zu einer Datei zusammengeführt, Untertitel werden als WebVTT-Datei
+> neben dem Video gespeichert, eine Nur-Audio-Spur kann einzeln gespeichert
+> werden und HLS mit Bytebereichen wird unterstützt. YouTube, DRM, verschlüsselte oder Live-Streams sowie das
 > Umgehen von Paywalls oder Zugriffskontrollen werden nicht unterstützt. Laden
 > Sie nur Medien herunter, die Ihnen gehören oder die Sie speichern dürfen.
 
@@ -396,27 +415,29 @@ Each description below exceeds Edge's 250-character minimum.
 > criptografados. A extensão mostra o progresso e o tempo restante estimado,
 > permite cancelar o download, cria nomes de arquivo claros, continua os
 > downloads em segundo plano e exibe claramente o estado final. O conteúdo HLS e
-> DASH é salvo como MP4 e, quando um manifesto DASH mantém o áudio em uma faixa
-> separada, as duas faixas são combinadas em um único arquivo. YouTube, DRM,
+> DASH é salvo como MP4: faixas de áudio separadas são combinadas em um único
+> arquivo, legendas são salvas como um arquivo WebVTT junto ao vídeo, uma faixa
+> somente de áudio pode ser salva por si só e playlists HLS por intervalos de
+> bytes são compatíveis. YouTube, DRM,
 > streams criptografados ou ao vivo e contorno de paywalls ou controles de acesso
 > não são compatíveis. Baixe apenas mídias que você possui ou tem permissão para
 > salvar.
 
 #### 日本語 (`ja`)
 
-> Video & Media Downloader は、ユーザーが選択したページから要求されたメディアを検出し、対応するファイルを端末内だけで処理するプライベートな仕組みでローカルに保存します。HTTPS 経由の MP4、WebM、MOV、M4V の直接動画ファイルと、暗号化されていない対応オンデマンドの HLS および DASH ストリームをダウンロードできます。進行状況、完了までの推定時間、キャンセル、分かりやすいファイル名、バックグラウンドでの継続、完了状態の表示に対応しています。HLS と DASH は MP4 として保存され、DASH マニフェストが音声を別のトラックに分けている場合は、音声と映像を 1 つのファイルに結合します。YouTube、DRM、暗号化またはライブ配信のストリーム、ペイウォールやアクセス制御の回避には対応していません。自分が所有している、または保存する許可を得ているメディアだけをダウンロードしてください。
+> Video & Media Downloader は、ユーザーが選択したページから要求されたメディアを検出し、対応するファイルを端末内だけで処理するプライベートな仕組みでローカルに保存します。HTTPS 経由の MP4、WebM、MOV、M4V の直接動画ファイルと、暗号化されていない対応オンデマンドの HLS および DASH ストリームをダウンロードできます。進行状況、完了までの推定時間、キャンセル、分かりやすいファイル名、バックグラウンドでの継続、完了状態の表示に対応しています。HLS と DASH は MP4 として保存され、分かれている音声トラックは 1 つのファイルに結合され、字幕は動画の横に WebVTT ファイルとして保存され、音声だけのトラックも単独で保存できます。バイトレンジ HLS にも対応しています。YouTube、DRM、暗号化またはライブ配信のストリーム、ペイウォールやアクセス制御の回避には対応していません。自分が所有している、または保存する許可を得ているメディアだけをダウンロードしてください。
 
 #### 한국어 (`ko`)
 
-> Video & Media Downloader는 사용자가 선택한 페이지에서 요청하는 미디어를 감지하고, 지원되는 파일을 기기 안에서만 처리하는 비공개 방식으로 로컬에 저장합니다. HTTPS를 사용하는 MP4, WebM, MOV, M4V 직접 동영상 파일과 암호화되지 않은 호환 주문형 HLS 및 DASH 스트림을 다운로드할 수 있습니다. 다운로드 진행률과 예상 남은 시간을 표시하고, 취소 기능과 알아보기 쉬운 파일 이름을 제공하며, 원본 탭을 닫은 뒤에도 백그라운드에서 계속 다운로드하고 완료 상태를 표시합니다. HLS와 DASH 콘텐츠는 MP4로 저장되며, DASH 매니페스트가 오디오를 별도 트랙으로 두는 경우 오디오와 영상을 하나의 파일로 병합합니다. YouTube, DRM, 암호화되었거나 라이브인 스트림, 페이월 또는 접근 제어 우회는 지원하지 않습니다. 본인이 소유하거나 저장 권한이 있는 미디어만 다운로드하세요.
+> Video & Media Downloader는 사용자가 선택한 페이지에서 요청하는 미디어를 감지하고, 지원되는 파일을 기기 안에서만 처리하는 비공개 방식으로 로컬에 저장합니다. HTTPS를 사용하는 MP4, WebM, MOV, M4V 직접 동영상 파일과 암호화되지 않은 호환 주문형 HLS 및 DASH 스트림을 다운로드할 수 있습니다. 다운로드 진행률과 예상 남은 시간을 표시하고, 취소 기능과 알아보기 쉬운 파일 이름을 제공하며, 원본 탭을 닫은 뒤에도 백그라운드에서 계속 다운로드하고 완료 상태를 표시합니다. HLS와 DASH 콘텐츠는 MP4로 저장됩니다. 분리된 오디오 트랙은 하나의 파일로 병합되고, 자막은 동영상 옆에 WebVTT 파일로 저장되며, 오디오 전용 트랙도 따로 저장할 수 있습니다. 바이트 범위 HLS도 지원합니다. YouTube, DRM, 암호화되었거나 라이브인 스트림, 페이월 또는 접근 제어 우회는 지원하지 않습니다. 본인이 소유하거나 저장 권한이 있는 미디어만 다운로드하세요.
 
 #### 简体中文 (`zh_CN`)
 
-> Video & Media Downloader 可检测您所选择网页请求的媒体，并通过完全在设备本地运行的私密流程保存受支持的文件。您可以下载通过 HTTPS 提供的 MP4、WebM、MOV 和 M4V 直接视频文件，以及受支持、未加密的点播 HLS 和 DASH 流。扩展会显示下载进度和预计剩余时间，支持取消任务、生成清晰的文件名、在来源标签页关闭后继续后台下载，并清楚显示完成状态。HLS 和 DASH 内容会保存为 MP4；如果 DASH 清单将音频单独放在一条轨道上，音频和视频会合并为一个文件。不支持 YouTube、DRM、加密流、直播流，也不支持绕过付费墙或访问控制。请仅下载您拥有或已获得保存许可的媒体，并遵守相关网站条款和当地法律。
+> Video & Media Downloader 可检测您所选择网页请求的媒体，并通过完全在设备本地运行的私密流程保存受支持的文件。您可以下载通过 HTTPS 提供的 MP4、WebM、MOV 和 M4V 直接视频文件，以及受支持、未加密的点播 HLS 和 DASH 流。扩展会显示下载进度和预计剩余时间，支持取消任务、生成清晰的文件名、在来源标签页关闭后继续后台下载，并清楚显示完成状态。HLS 和 DASH 内容会保存为 MP4；分开的音频轨会合并为一个文件，字幕会以 WebVTT 文件的形式保存在视频旁边，仅音频的轨道也可以单独保存，并且支持字节范围的 HLS。不支持 YouTube、DRM、加密流、直播流，也不支持绕过付费墙或访问控制。请仅下载您拥有或已获得保存许可的媒体，并遵守相关网站条款和当地法律。
 
 #### 繁體中文 (`zh_TW`)
 
-> Video & Media Downloader 可偵測您所選擇網頁要求的媒體，並透過完全在裝置本機執行的私密流程儲存受支援的檔案。您可以下載透過 HTTPS 提供的 MP4、WebM、MOV 和 M4V 直接影片檔案，以及受支援且未加密的隨選 HLS 和 DASH 串流。擴充功能會顯示下載進度和預估剩餘時間，支援取消工作、產生清楚的檔案名稱、在來源分頁關閉後繼續於背景下載，並清楚顯示完成狀態。HLS 和 DASH 內容會儲存為 MP4；若 DASH 資訊清單將音訊獨立為一條軌道，音訊與影片會合併為單一檔案。不支援 YouTube、DRM、加密串流、直播串流，也不支援繞過付費牆或存取控制。請僅下載您擁有或已取得儲存許可的媒體，並遵守相關網站條款及當地法律。
+> Video & Media Downloader 可偵測您所選擇網頁要求的媒體，並透過完全在裝置本機執行的私密流程儲存受支援的檔案。您可以下載透過 HTTPS 提供的 MP4、WebM、MOV 和 M4V 直接影片檔案，以及受支援且未加密的隨選 HLS 和 DASH 串流。擴充功能會顯示下載進度和預估剩餘時間，支援取消工作、產生清楚的檔案名稱、在來源分頁關閉後繼續於背景下載，並清楚顯示完成狀態。HLS 和 DASH 內容會儲存為 MP4；分開的音訊軌會合併為單一檔案，字幕會以 WebVTT 檔案的形式儲存在影片旁邊，僅音訊的軌道也可以單獨儲存，並支援位元組範圍的 HLS。不支援 YouTube、DRM、加密串流、直播串流，也不支援繞過付費牆或存取控制。請僅下載您擁有或已取得儲存許可的媒體，並遵守相關網站條款及當地法律。
 
 Search terms (seven or fewer per language, within Edge's 21-word and
 30-character limits):
@@ -473,7 +494,8 @@ and [publishing flow](https://learn.microsoft.com/en-us/microsoft-edge/extension
 - Upload `store-assets/icon-128.png`, all three current 1280×800 screenshots, and
   `store-assets/small-promo-440x280.png`. The 1400×560 marquee is optional.
 - Test the packed ZIP on clean Chrome profiles on macOS, Windows, and Linux:
-  direct MP4/WebM, TS-HLS, fMP4-HLS, cancel, retry, source-tab closure,
+  direct MP4/WebM, TS-HLS, fMP4-HLS, byte-range HLS, subtitle sidecar,
+  audio-only, cancel, retry, source-tab closure,
   completion notification, denied site access, HTTP rejection, and each
   supported browser language.
 - Upload first as **Private / trusted testers**, then move to public after the

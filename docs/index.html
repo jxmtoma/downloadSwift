@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Video &amp; Media Downloader — Private Browser Video Downloader</title>
-    <meta name="description" content="Download supported direct video files and unencrypted HLS and DASH streams with a private, on-device extension for Chrome, Microsoft Edge, Firefox, and Safari.">
+    <meta name="description" content="Download supported direct video files and unencrypted HLS and DASH streams with quality choice, subtitles, and audio-only output — a private, on-device extension for Chrome, Microsoft Edge, Firefox, and Safari.">
     <link rel="canonical" href="https://jxmtoma.github.io/downloadSwift/">
     <link rel="stylesheet" href="styles.css">
     <script src="site.js" defer></script>
@@ -21,7 +21,7 @@
       <section class="hero">
         <p class="eyebrow">Free, private, on-device browser extension</p>
         <h1>Save supported web video without tracking.</h1>
-        <p class="lede">Detect direct HTTPS video files and compatible unencrypted HLS and DASH streams, then save them locally with progress and MP4 output.</p>
+        <p class="lede">Detect direct HTTPS video files and compatible unencrypted HLS and DASH streams, then save them locally with quality choice, subtitle sidecars, audio-only output, and MP4 progress.</p>
         <div id="install" class="actions">
           <a class="button primary" href="https://chromewebstore.google.com/detail/downloadswift/dkbifgckbphgghkpgapmcekpogeppenm">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-5.344 9.257c.206.01.413.016.621.016 6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.364zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728Z"/></svg>
@@ -36,7 +36,7 @@
             Install for Firefox
           </a>
         </div>
-        <p class="meta">Free · Version 0.5.0 · Released August 28, 2026 · <a href="#changelog">See what changed</a></p>
+        <p class="meta">Free · Version 0.6.0 · Released September 4, 2026 · <a href="#changelog">See what changed</a></p>
       </section>
 
       <section class="grid" aria-label="Features">
@@ -71,7 +71,7 @@
           <p class="eyebrow">Choose what you need</p>
           <h2 id="quality-title">Pick 720p instead of 4K.</h2>
           <p>HLS and DASH variants appear in the popup with their available quality and bitrate, so you can choose the right download before it starts.</p>
-          <p>When HLS provides audio separately, the selected video and audio tracks are merged into one MP4 automatically.</p>
+          <p>When HLS provides audio separately, the selected video and audio tracks are merged into one MP4 automatically. Subtitles are saved as a WebVTT file next to the video, and an audio-only rendition can be saved on its own as .m4a.</p>
         </div>
         <figure>
           <img src="screenshot-quality.png" alt="Video &amp; Media Downloader popup showing a 720p quality picker for an HLS stream">
@@ -97,7 +97,15 @@
       <section class="notice" id="changelog">
         <h2>Changelog</h2>
 
-        <h3>0.5.0 — August 28, 2026 <span class="tag">latest</span></h3>
+        <h3>0.6.0 — September 4, 2026 <span class="tag">latest</span></h3>
+        <ul>
+          <li>Save a stream's subtitles as a WebVTT sidecar file next to the video.</li>
+          <li>Add an audio-only download for streams that keep audio in its own rendition.</li>
+          <li>Grey out the audio-only option, with an explanation, when a stream has no separate audio track to save.</li>
+          <li>Download byte-range HLS playlists, fetching each segment with its exact range.</li>
+        </ul>
+
+        <h3>0.5.0 — August 28, 2026</h3>
         <ul>
           <li>Choose an available HLS or DASH video quality before downloading.</li>
           <li>Merge separate fMP4 audio playlists from HLS masters into the downloaded MP4.</li>

@@ -26,10 +26,13 @@ For local development, run `sh scripts/package.sh`, open
 
 ## Load it in Safari
 
-Safari remains supported and packaged, but App Store publication is deliberately
-on hold until a live detect ▸ download ▸ save test produces a non-zero,
-playable file. The known zero-byte save causes are fixed, and saving now happens
-in a dedicated tab.
+**Safari saves through a dedicated save page.** It has no WebExtension downloads
+or notifications API and ignores a download attribute clicked from a background
+page, so a finished job waits in the popup with a **Save** button that opens a
+save tab: the page reads the prepared file itself and saves it, and a subtitle
+sidecar gets its own save link there. App Store publication remains deliberately
+on hold until a live detect ▸ download ▸ save test produces a non-zero, playable
+file; the known zero-byte save causes are fixed.
 
 1. Run `sh scripts/package.sh` (Safari 26 or later on macOS).
 2. In **Safari → Settings → Advanced**, enable **Show features for web developers**.
@@ -46,9 +49,12 @@ different domain than the page itself.
 
 Direct video files can be downloaded. Unencrypted on-demand HLS (`.m3u8`) and
 DASH (`.mpd`) streams are saved as MP4, including HLS playlists with separate
-fMP4 audio tracks. When a master playlist or DASH manifest exposes multiple
-video variants, the popup lets you choose the quality before downloading.
-Streams are assembled
+fMP4 audio tracks and byte-range playlists whose segments are slices of one
+resource, each fetched with the exact `Range` header it needs. A stream's
+subtitles are saved as a WebVTT sidecar next to the video, and when the audio
+lives in its own rendition it can be saved alone as `.m4a`. When a master
+playlist or DASH manifest exposes multiple video variants, the popup lets you
+choose the quality before downloading. Streams are assembled
 into a progressive MP4, with the samples described once in the header rather
 than ahead of each fragment: macOS reads no fragmented MP4 from disk, so that
 layout played broken in every browser there while working on Windows. MPEG-TS streams using
@@ -128,7 +134,7 @@ is no dependency installation step and no network access is needed.
 3. The Firefox package is written to `dist/downloadswift-firefox-<version>.zip`,
    where `<version>` is the `version` field of `manifest.json`. The script also
    writes the Chrome/Edge, Safari, and source packages and prints each path. Use
-   `dist/downloadswift-source-<version>.zip` for the AMO source-code upload.
+   `dist/downloadswift-firefox-source-<version>.zip` for the AMO source-code upload.
 
 What the script does: copies the shared source files, generates the Firefox
 manifest from `manifest.json` with `scripts/browser-manifest.mjs` (which swaps
@@ -169,10 +175,13 @@ back to English.
 
 - Direct HTTPS MP4, WebM, MOV, and M4V files
 - Unencrypted on-demand HTTPS HLS download as MP4, including separate fMP4 audio
-  tracks
+  tracks and byte-range playlists whose segments are slices of one resource
 - On-demand DASH download as MP4, including manifests that keep audio and video
   in separate adaptation sets
 - HLS and DASH quality selection when a manifest exposes multiple variants
+- Subtitle renditions saved as a WebVTT sidecar next to the video
+- Audio-only download (`.m4a`) when a stream keeps its audio in a separate
+  rendition
 - Bilibili video pages, whose player exposes no manifest URL to detect
 - Detected videos show a frame from the media itself, taken from the file or
   from a stream's first segment, so an ad stub sharing the same MP4 mime type is
