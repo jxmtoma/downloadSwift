@@ -10,6 +10,16 @@ const api = globalThis.browser ?? globalThis.chrome;
 
 localizeDocument();
 
+// The popup is destroyed the instant it loses focus, and a navigation started
+// from it dies with it. Links marked data-open-url go through tabs.create,
+// which produces a real tab that survives the popup closing.
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a[data-open-url]");
+  if (!link) return;
+  event.preventDefault();
+  api.tabs.create({ url: link.href }).catch(() => {});
+});
+
 const ORIGINS = ["https://*/*"];
 // Enough of a fragmented track to hold its first decodable frame.
 const PREVIEW_BYTES = 2 * 1024 * 1024;

@@ -128,5 +128,7 @@
   "notification_complete": { "message": "Download abgeschlossen" },
   "open_file": { "message": "Datei öffnen" },
   "show_in_folder": { "message": "Im Ordner anzeigen" },
-  "offscreen_justification": { "message": "Video herunterladen und vorbereiten, ohne einen Tab zu öffnen." }
+  "offscreen_justification": { "message": "Video herunterladen und vorbereiten, ohne einen Tab zu öffnen." },
+  "donate": { "message": "Spenden" },
+  "extension_details": { "message": "Details zur Erweiterung" }
 }

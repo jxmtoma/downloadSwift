@@ -128,5 +128,7 @@
   "notification_complete": { "message": "Descarga completada" },
   "open_file": { "message": "Abrir archivo" },
   "show_in_folder": { "message": "Mostrar en carpeta" },
-  "offscreen_justification": { "message": "Descargar y preparar el video sin abrir una pestaña." }
+  "offscreen_justification": { "message": "Descargar y preparar el video sin abrir una pestaña." },
+  "donate": { "message": "Donar" },
+  "extension_details": { "message": "Detalles de la extensión" }
 }

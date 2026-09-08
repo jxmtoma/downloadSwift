@@ -128,5 +128,7 @@
   "notification_complete": { "message": "下載完成" },
   "open_file": { "message": "開啟檔案" },
   "show_in_folder": { "message": "在資料夾中顯示" },
-  "offscreen_justification": { "message": "不開啟分頁即可下載並準備影片。" }
+  "offscreen_justification": { "message": "不開啟分頁即可下載並準備影片。" },
+  "donate": { "message": "捐款" },
+  "extension_details": { "message": "擴充功能詳情" }
 }

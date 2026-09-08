@@ -552,6 +552,42 @@ ul {
   gap: 6px;
 }
 
+.support-footer {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  font-size: 11px;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 12px 2px 0;
+}
+
+.support-link {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  font-weight: 600;
+  gap: 5px;
+  text-decoration: none;
+}
+
+.support-link:hover {
+  color: var(--accent);
+}
+
+.support-link .heart {
+  fill: #e11d48;
+  height: 11px;
+  transition: transform 120ms ease;
+  width: 11px;
+}
+
+.support-link.donate:hover .heart {
+  transform: scale(1.2);
+}
+
 .job-status {
   color: var(--muted);
   font-size: 12px;
@@ -625,5 +661,9 @@ ul {
     background: #431407;
     border-color: #9a3412;
     color: #fed7aa;
+  }
+
+  .support-link .heart {
+    fill: #fb7185;
   }
 }

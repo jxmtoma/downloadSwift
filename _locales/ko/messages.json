@@ -128,5 +128,7 @@
   "notification_complete": { "message": "다운로드 완료" },
   "open_file": { "message": "파일 열기" },
   "show_in_folder": { "message": "폴더에서 보기" },
-  "offscreen_justification": { "message": "탭을 열지 않고 동영상을 다운로드하고 준비합니다." }
+  "offscreen_justification": { "message": "탭을 열지 않고 동영상을 다운로드하고 준비합니다." },
+  "donate": { "message": "기부하기" },
+  "extension_details": { "message": "확장 프로그램 세부정보" }
 }

@@ -128,5 +128,7 @@
   "notification_complete": { "message": "下载完成" },
   "open_file": { "message": "打开文件" },
   "show_in_folder": { "message": "在文件夹中显示" },
-  "offscreen_justification": { "message": "无需打开标签页即可下载并准备视频。" }
+  "offscreen_justification": { "message": "无需打开标签页即可下载并准备视频。" },
+  "donate": { "message": "捐助" },
+  "extension_details": { "message": "扩展详情" }
 }
