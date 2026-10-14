@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { getMedia } from "./resolve.mjs";
-import { combineVttSegments, parseHlsMedia, parseHlsVariants, selectHlsVariant } from "./hls.mjs";
+import { combineVttSegments, createHlsDecryptor, parseHlsMedia, parseHlsVariants, selectHlsVariant } from "./hls.mjs";
+import { webcrypto } from "node:crypto";
+
+globalThis.crypto ??= webcrypto;
 
 const english = JSON.parse(fs.readFileSync("_locales/en/messages.json", "utf8"));
 globalThis.chrome = {
@@ -150,10 +153,123 @@ assert.throws(
   () => parseHlsMedia("#EXTM3U\n#EXTINF:6,\n1.ts", "https://cdn.example/live.m3u8"),
   /Live HLS/
 );
-assert.throws(
-  () => parseHlsMedia("#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"key\"\n#EXT-X-ENDLIST\n1.ts", "https://cdn.example/vod.m3u8"),
-  /Encrypted/
+
+const encryptedPlaylist = (tags) => `#EXTM3U\n${tags}\n#EXTINF:6,\nseg.ts\n#EXT-X-ENDLIST`;
+const implicitIv = parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-MEDIA-SEQUENCE:1\n#EXT-X-KEY:METHOD=AES-128,URI="keys/one.key"'
+), "https://cdn.example/video/list.m3u8");
+assert.deepEqual(implicitIv.segmentKeys, [{ keyUrl: "https://cdn.example/video/keys/one.key", sequence: "1" }]);
+const largeSequence = parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-MEDIA-SEQUENCE:9007199254740993\n#EXT-X-KEY:METHOD=AES-128,URI="key"'
+), "https://cdn.example/list.m3u8").segmentKeys[0];
+assert.equal(largeSequence.sequence, "9007199254740993");
+const explicitIv = parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=AES-128,URI="key",IV=0X0A'
+), "https://cdn.example/list.m3u8");
+assert.deepEqual(explicitIv.segmentKeys[0], {
+  iv: "0x0000000000000000000000000000000a",
+  keyUrl: "https://cdn.example/key",
+  sequence: "0"
+});
+const rotated = parseHlsMedia(`#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="one"
+#EXTINF:6,
+one.ts
+#EXT-X-KEY:METHOD=AES-128,URI="two",IV=0x00000000000000000000000000000002
+#EXTINF:6,
+two.ts
+#EXT-X-KEY:METHOD=NONE
+#EXTINF:6,
+clear.ts
+#EXT-X-ENDLIST`, "https://cdn.example/list.m3u8");
+assert.equal(rotated.segmentKeys[0].keyUrl, "https://cdn.example/one");
+assert.equal(rotated.segmentKeys[1].keyUrl, "https://cdn.example/two");
+assert.equal(rotated.segmentKeys[2], null);
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=AES-128,URI="key",IV=0x123456789012345678901234567890123'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=AES-128,URI="http://cdn.example/key"'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=AES-128,URI="http://[::1"'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=AES-128,URI="key",KEYFORMAT="com.example.drm"'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=AES-128,URI="key",KEYFORMATVERSIONS="2"'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.equal(parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=AES-128,URI="key",KEYFORMATVERSIONS="1/2"'
+), "https://cdn.example/list.m3u8").segmentKeys[0].keyUrl, "https://cdn.example/key");
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-KEY:METHOD=SAMPLE-AES,URI="key"'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-MEDIA-SEQUENCE:1x\n#EXT-X-KEY:METHOD=AES-128,URI="key"'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(encryptedPlaylist(
+  '#EXT-X-MEDIA-SEQUENCE:18446744073709551616\n#EXT-X-KEY:METHOD=AES-128,URI="key",IV=0x1'
+), "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(`#EXTM3U
+#EXT-X-MEDIA-SEQUENCE:1
+#EXTINF:6,
+one.ts
+#EXT-X-MEDIA-SEQUENCE:2
+#EXTINF:6,
+two.ts
+#EXT-X-ENDLIST`, "https://cdn.example/list.m3u8"), /encryption/i);
+assert.throws(() => parseHlsMedia(`#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="key"
+#EXT-X-MAP:URI="init.mp4"
+#EXTINF:6,
+seg.m4s
+#EXT-X-ENDLIST`, "https://cdn.example/list.m3u8"), /encryption/i);
+assert.deepEqual(parseHlsMedia(`#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="key",IV=0x00000000000000000000000000000001
+#EXT-X-MAP:URI="init.mp4"
+#EXT-X-KEY:METHOD=AES-128,URI="rotated",IV=0x00000000000000000000000000000002
+#EXTINF:6,
+seg.m4s
+#EXT-X-ENDLIST`, "https://cdn.example/list.m3u8").initKey, {
+  iv: "0x00000000000000000000000000000001", keyUrl: "https://cdn.example/key"
+});
+
+const rawKey = new Uint8Array(16).map((_, index) => index + 1);
+const iv = new Uint8Array(16).fill(0);
+iv[15] = 10;
+const plaintext = new Uint8Array(fs.readFileSync("test-fixtures/h264-aac.ts"));
+const nodeCipher = (await import("node:crypto")).createCipheriv("aes-128-cbc", rawKey, iv);
+const ciphertext = new Uint8Array(Buffer.concat([nodeCipher.update(plaintext), nodeCipher.final()]));
+let keyFetches = 0;
+const decrypt = createHlsDecryptor(async () => { keyFetches += 1; return rawKey; });
+const decrypted = await decrypt(ciphertext, explicitIv.segmentKeys[0]);
+assert.deepEqual(decrypted, plaintext);
+await decrypt(ciphertext, explicitIv.segmentKeys[0]);
+assert.equal(keyFetches, 1, "AES keys are imported and fetched once per decryptor");
+const largeIv = new Uint8Array(16);
+new DataView(largeIv.buffer).setBigUint64(8, BigInt(largeSequence.sequence));
+const largeCipher = (await import("node:crypto")).createCipheriv("aes-128-cbc", rawKey, largeIv);
+const largeCiphertext = new Uint8Array(Buffer.concat([largeCipher.update(plaintext), largeCipher.final()]));
+assert.deepEqual(await decrypt(largeCiphertext, largeSequence), plaintext);
+const fetchFailure = new Error("key request failed");
+await assert.rejects(
+  createHlsDecryptor(async () => { throw fetchFailure; })(ciphertext, explicitIv.segmentKeys[0]),
+  (error) => error === fetchFailure
 );
+await assert.rejects(
+  createHlsDecryptor(async () => new Uint8Array(15))(ciphertext, explicitIv.segmentKeys[0]),
+  /encryption/i
+);
+await assert.rejects(
+  createHlsDecryptor(async () => rawKey)(Uint8Array.of(1), explicitIv.segmentKeys[0]),
+  /encryption/i
+);
+assert.equal(parseHlsMedia(
+  "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"key\"\n#EXT-X-ENDLIST\n1.ts",
+  "https://cdn.example/vod.m3u8"
+).segmentKeys[0].keyUrl, "https://cdn.example/key");
 
 // A master with a subtitle rendition: the variant selection hands back the
 // subtitle playlist next to the audio one.

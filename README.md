@@ -47,10 +47,10 @@ Detection watches requests, and a request is only visible on a host the extensio
 holds permission for, while a video page nearly always serves its media from a
 different domain than the page itself.
 
-Direct video files can be downloaded. Unencrypted on-demand HLS (`.m3u8`) and
-DASH (`.mpd`) streams are saved as MP4, including HLS playlists with separate
-fMP4 audio tracks and byte-range playlists whose segments are slices of one
-resource, each fetched with the exact `Range` header it needs. A stream's
+Direct video files can be downloaded. Compatible on-demand HLS (`.m3u8`),
+including AES-128 encrypted playlists, and DASH (`.mpd`) streams are saved
+as MP4, including HLS playlists with separate fMP4 audio tracks and byte-range
+playlists whose segments are slices of one resource, each fetched with the exact `Range` header it needs. A stream's
 subtitles are saved as a WebVTT sidecar next to the video, and when the audio
 lives in its own rendition it can be saved alone as `.m4a`. When a master
 playlist or DASH manifest exposes multiple video variants, the popup lets you
@@ -176,8 +176,9 @@ back to English.
 ## Current scope
 
 - Direct HTTPS MP4, WebM, MOV, and M4V files
-- Unencrypted on-demand HTTPS HLS download as MP4, including separate fMP4 audio
-  tracks and byte-range playlists whose segments are slices of one resource
+- On-demand HTTPS HLS download as MP4, including AES-128 playlists, separate
+  fMP4 audio tracks, and byte-range playlists whose segments are slices of one
+  resource
 - On-demand DASH download as MP4, including manifests that keep audio and video
   in separate adaptation sets
 - HLS and DASH quality selection when a manifest exposes multiple variants
@@ -188,8 +189,8 @@ back to English.
 - Detected videos show a frame from the media itself, taken from the file or
   from a stream's first segment, so an ad stub sharing the same MP4 mime type is
   obvious at a glance
-- No YouTube, DRM, stream decryption, live recording, or access-control
-  bypassing
+- No YouTube, DRM, unsupported HLS encryption, encrypted DASH, live streams,
+  or access-control bypassing
 
 See [PUBLISHING.md](PUBLISHING.md) for the release checklist and pricing plan,
 and [PRIVACY.md](PRIVACY.md) for the privacy policy.

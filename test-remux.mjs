@@ -16,6 +16,12 @@ assert.equal(output.subarray(4, 8).toString(), "ftyp");
 assert.ok(output.includes(Buffer.from("moov")));
 assert.ok(output.includes(Buffer.from("moof")));
 assert.ok(output.includes(Buffer.from("mdat")));
+assert.deepEqual(transmux(new Uint8Array()), []);
+assert.deepEqual(transmux(Uint8Array.of(0x47)), []);
+assert.throws(() => createTsTransmuxer(sandbox.muxjs)(Uint8Array.of(1, 2, 3)));
+const afterStub = createTsTransmuxer(sandbox.muxjs);
+assert.deepEqual(afterStub(Uint8Array.of(0x47)), []);
+assert.ok(afterStub(new Uint8Array(fs.readFileSync("test-fixtures/h264-aac.ts"))).length);
 
 const durationSeconds = 12.5;
 const finalized = Buffer.from(finalizeMp4Duration(

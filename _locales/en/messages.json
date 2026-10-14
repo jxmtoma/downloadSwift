@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "Save direct video files and unencrypted HLS and DASH streams locally: quality choice, subtitles, audio-only, MP4, no tracking." },
+  "extension_description": { "message": "Save direct videos, compatible HLS (AES-128 included) and DASH locally: quality, subtitles, audio-only, MP4, no tracking." },
   "brand_subtitle": { "message": "Private video saver" },
   "state_off": { "message": "Off" },
   "state_active": { "message": "Active" },
@@ -120,7 +120,7 @@
   "error_site_unresolved": { "message": "This page did not return a downloadable stream." },
   "error_dash_unsupported": { "message": "This DASH manifest uses a segment layout that is not supported yet." },
   "error_byte_range_hls": { "message": "Byte ranges spanning discontinuities or changing initialization segments are not supported yet." },
-  "error_encrypted_hls": { "message": "Encrypted or DRM-protected HLS streams are not supported." },
+  "error_encrypted_hls": { "message": "This HLS stream uses unsupported or invalid encryption, or DRM." },
   "error_no_segments": { "message": "The HLS playlist contains no video segments." },
   "error_unsupported_ts": { "message": "This TS stream does not contain supported H.264/AAC media." },
   "unknown_error": { "message": "unknown error" },

@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "Salve vídeos diretos e streams HLS e DASH não criptografados localmente: qualidade, legendas, somente áudio, MP4 e sem rastreamento." },
+  "extension_description": { "message": "Salve vídeos diretos, HLS compatível (incluindo AES-128) e DASH: qualidade, legendas, áudio, MP4, sem rastreamento." },
   "brand_subtitle": { "message": "Salvador de vídeos privado" },
   "state_off": { "message": "Desativado" },
   "state_active": { "message": "Ativo" },
@@ -120,7 +120,7 @@
   "error_site_unresolved": { "message": "Esta página não retornou nenhum fluxo para baixar." },
   "error_dash_unsupported": { "message": "Este manifesto DASH usa um formato de segmentos ainda não compatível." },
   "error_byte_range_hls": { "message": "Intervalos de bytes que abrangem descontinuidades ou segmentos de inicialização variáveis ainda não são suportados." },
-  "error_encrypted_hls": { "message": "Streams HLS criptografados ou protegidos por DRM não são compatíveis." },
+  "error_encrypted_hls": { "message": "Este stream HLS usa criptografia incompatível ou inválida, ou DRM." },
   "error_no_segments": { "message": "A playlist HLS não contém segmentos de vídeo." },
   "error_unsupported_ts": { "message": "Este stream TS não contém mídia H.264/AAC compatível." },
   "unknown_error": { "message": "erro desconhecido" },

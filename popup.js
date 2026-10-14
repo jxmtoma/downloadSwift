@@ -1,6 +1,6 @@
 import { byPlayability, candidateRank, downloadFilename } from "./media.mjs";
 import { formatTimeUntil, localizeDocument, t } from "./i18n.mjs";
-import { createTsTransmuxer, parseHlsMedia, parseHlsVariants, rangeHeader, selectHlsVariant } from "./hls.mjs";
+import { createHlsDecryptor, createTsTransmuxer, parseHlsMedia, parseHlsVariants, rangeHeader, selectHlsVariant } from "./hls.mjs";
 import { hasAudioTrack, readDashXml, selectDashVariants } from "./dash.mjs";
 import { getMedia } from "./resolve.mjs";
 import { resolveSiteVariants } from "./sites.mjs";
@@ -400,12 +400,21 @@ async function streamPreviewBlob(item) {
   });
 
   const first = media.video ?? { url: media.segmentUrls[0] };
-  const hosts = [...new Set([media.initUrl, first.url, media.video?.url]
+  const firstKey = media.segmentKeys?.[0];
+  const hosts = [...new Set([
+    media.initUrl,
+    first.url,
+    ...(media.segmentUrls ?? []),
+    media.video?.url,
+    media.initKey?.keyUrl,
+    ...(media.segmentKeys ?? []).map((key) => key?.keyUrl)
+  ]
     .filter(Boolean)
     .map((url) => new URL(url).hostname))];
 
   const armed = await armPreview(item, hosts);
   try {
+    const decrypt = createHlsDecryptor(readBytes);
     if (media.video) {
       // A self-contained track: the header plus one fragment is a playable clip.
       // Both responses are ranged, so between them they also state the exact
@@ -428,6 +437,22 @@ async function streamPreviewBlob(item) {
       false
     );
 
+    if (media.extension === "ts") {
+      const transmux = createTsTransmuxer(globalThis.muxjs);
+      const parts = [];
+      for (let index = 0; index < media.segmentUrls.length; index += 1) {
+        const bytes = await readBytes(media.segmentUrls[index], media.segmentRanges?.[index]
+          ? { Range: rangeHeader(media.segmentRanges[index]) }
+          : undefined);
+        for (const chunk of transmux(await decrypt(bytes, media.segmentKeys?.[index]))) {
+          if (!parts.length) parts.push(chunk.initSegment);
+          parts.push(chunk.data);
+        }
+        if (parts.length) return new Blob(parts, { type: "video/mp4" });
+      }
+      throw new Error(t("error_unsupported_ts"));
+    }
+
     // Byte-range streams keep every segment inside one resource, so the opening
     // slice is requested through the same ranges the download itself uses. The
     // two reads are independent of each other, and the round trip to a CDN is
@@ -436,22 +461,16 @@ async function streamPreviewBlob(item) {
       media.initUrl
         ? readBytes(media.initUrl, media.initRange
           ? { Range: rangeHeader(media.initRange) }
-          : undefined)
+          : undefined).then((bytes) => decrypt(bytes, media.initKey))
         : null,
       readBytes(media.segmentUrls[0], media.segmentRanges?.[0]
         ? { Range: rangeHeader(media.segmentRanges[0]) }
-        : undefined)
+        : undefined).then((bytes) => decrypt(bytes, firstKey))
     ]);
     const parts = [];
     if (init) parts.push(init);
     if (media.extension === "mp4") {
       parts.push(segment);
-    } else {
-      const transmux = createTsTransmuxer(globalThis.muxjs);
-      for (const chunk of transmux(segment)) {
-        if (!parts.length) parts.push(chunk.initSegment);
-        parts.push(chunk.data);
-      }
     }
     return new Blob(parts, { type: "video/mp4" });
   } finally {

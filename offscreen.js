@@ -1,4 +1,4 @@
-import { combineVttSegments, createTsTransmuxer, parseHlsMedia, rangeHeader, selectHlsVariant } from "./hls.mjs";
+import { combineVttSegments, createHlsDecryptor, createTsTransmuxer, parseHlsMedia, rangeHeader, selectHlsVariant } from "./hls.mjs";
 import {
   boxes,
   combineInitSegments,
@@ -42,7 +42,7 @@ async function report(jobId, changes) {
   });
 }
 
-async function fetchResource(url, signal, headers) {
+async function fetchResource(url, signal, headers, consume = (response) => response, timeoutMs = null) {
   if (!isSecureMediaUrl(url)) throw new Error(t("error_https_only"));
 
   for (let attempt = 0; ; attempt += 1) {
@@ -50,14 +50,16 @@ async function fetchResource(url, signal, headers) {
     let response;
 
     try {
-      response = await fetch(url, { cache: "no-store", credentials: "include", headers, signal });
+      const requestSignal = timeoutMs == null ? signal
+        : AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
+      response = await fetch(url, { cache: "no-store", credentials: "include", headers, signal: requestSignal });
+      if (response.ok) return await consume(response);
     } catch (error) {
-      if (error.name === "AbortError" || retryDelay == null) throw error;
+      if (signal.aborted || error.name === "AbortError" || retryDelay == null) throw error;
       await sleep(retryDelay);
       continue;
     }
 
-    if (response.ok) return response;
     if (retryDelay == null || !retriableStatus(response.status)) {
       throw new Error(t("error_http_status", String(response.status)));
     }
@@ -94,23 +96,39 @@ async function* fetchSegments(urls, signal, ranges = null) {
   }
 }
 
-const readBytes = async (url, signal, headers) => new Uint8Array(
-  await (await fetchResource(url, signal, headers)).arrayBuffer()
-);
+const readBytes = (url, signal, headers) => fetchResource(url, signal, headers,
+  async (response) => new Uint8Array(await response.arrayBuffer()));
 
 // One whole fragmented file per track, streamed rather than buffered: these run
 // to hundreds of megabytes and two of them in memory at once would not survive a
 // feature-length video. Header boxes are dropped because the merged header
 // written earlier replaces them; only moof and its mdat go through.
 async function* trackFragments(track, signal, onBytes) {
-  const response = await fetchResource(track.url, signal, { Range: track.mediaRange });
-  const reader = response.body.getReader();
   const split = createBoxSplitter();
   let moof = null;
+  const start = Number(/bytes=(\d+)-/.exec(track.mediaRange)[1]);
+  let offset = start;
+  let total = Infinity;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  // Commit only complete ranges, so a broken response body can be retried
+  // without duplicating bytes already handed to the MP4 splitter.
+  while (offset < total) {
+    const end = Math.min(offset + 1024 * 1024, total) - 1;
+    const value = await fetchResource(track.url, signal, { Range: `bytes=${offset}-${end}` }, async (response) => {
+      const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(response.headers.get("content-range") ?? "");
+      if (response.status !== 206 || !range || Number(range[1]) !== offset
+        || Number(range[2]) !== Math.min(end, Number(range[3]) - 1)
+        || (total !== Infinity && Number(range[3]) !== total)) {
+        await response.body?.cancel();
+        throw new Error("Invalid media byte-range response");
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.length !== Number(range[2]) - offset + 1) throw new Error("Incomplete media byte range");
+      total = Number(range[3]);
+      track.totalBytes = total - start;
+      return bytes;
+    }, 30000);
+    offset += value.byteLength;
     await onBytes(value.byteLength);
     for (const item of split(value)) {
       if (item.type === "moof") {
@@ -309,17 +327,19 @@ async function offerDownload(job, handle, tempName, filename) {
 // WebVTT files that get joined into one. Built and written before the video is
 // offered, so a save page sees both files the moment it reads the job. Any
 // failure here only means no subtitles — the video itself is already done.
-async function prepareSubtitleSidecar(job, media, signal) {
+async function prepareSubtitleSidecar(job, media, signal, decrypt) {
   if (!media.subtitle?.segmentUrls?.length) return null;
 
   try {
     const decoder = new TextDecoder();
     const segments = [];
-    for await (const bytes of fetchSegments(
+    let index = 0;
+    for await (const encrypted of fetchSegments(
       media.subtitle.segmentUrls,
       signal,
       media.subtitle.segmentRanges ?? null
     )) {
+      const bytes = await decrypt(encrypted, media.subtitle.segmentKeys?.[index++]);
       segments.push(decoder.decode(bytes));
     }
 
@@ -401,6 +421,7 @@ async function runHlsJob(job) {
       fetchJson: async (url) => (await fetchResource(url, controller.signal)).json(),
       fetchText: async (url) => (await fetchResource(url, controller.signal)).text()
     });
+    const decrypt = createHlsDecryptor((url) => readBytes(url, controller.signal));
     // The header replay rule starts scoped to the playlist's host; segments on a
     // different CDN host need it too, and only the playlist says where they live.
     await sendToServiceWorker({
@@ -411,7 +432,10 @@ async function runHlsJob(job) {
         media.audio?.url,
         media.audio?.initUrl,
         ...media.audio?.segmentUrls ?? [],
-        ...media.subtitle?.segmentUrls ?? []
+        ...media.subtitle?.segmentUrls ?? [],
+        ...[media.initKey, ...(media.segmentKeys ?? []), media.audio?.initKey, ...(media.audio?.segmentKeys ?? []), media.subtitle?.initKey, ...(media.subtitle?.segmentKeys ?? [])]
+          .filter(Boolean)
+          .map((key) => key.keyUrl)
       ]
         .filter(Boolean)
         .map((url) => new URL(url).hostname))],
@@ -463,7 +487,9 @@ async function runHlsJob(job) {
       let lastPercent = -1;
       const onBytes = async (count) => {
         received += count;
-        const percent = Math.min(90, Math.floor((received / (media.totalBytes || received * 4)) * 90));
+        const totalBytes = media.video.totalBytes && media.audio.totalBytes
+          ? media.video.totalBytes + media.audio.totalBytes : 0;
+        const percent = totalBytes ? Math.min(90, Math.floor(received / totalBytes * 90)) : 0;
         if (percent === lastPercent) return;
         lastPercent = percent;
         await report(job.id, {
@@ -480,8 +506,10 @@ async function runHlsJob(job) {
       ], tracked, controller.signal, onBytes);
     } else if (media.audio) {
       const [videoInit, audioInit] = await Promise.all([
-        readBytes(media.initUrl, controller.signal, rangeHeaders(media.initRange)),
+        readBytes(media.initUrl, controller.signal, rangeHeaders(media.initRange))
+          .then((bytes) => decrypt(bytes, media.initKey)),
         readBytes(media.audio.initUrl, controller.signal, rangeHeaders(media.audio.initRange))
+          .then((bytes) => decrypt(bytes, media.audio.initKey))
       ]);
       const combined = combineInitSegments(videoInit, audioInit, media.durationSeconds);
       mux = { ...combined, sequence: 0 };
@@ -489,12 +517,14 @@ async function runHlsJob(job) {
     } else if (!transmux && media.initUrl) {
       output = await createProgressiveOutput(
         writable,
-        await readBytes(media.initUrl, controller.signal, rangeHeaders(media.initRange)),
+        await readBytes(media.initUrl, controller.signal, rangeHeaders(media.initRange))
+          .then((bytes) => decrypt(bytes, media.initKey)),
         staging
       );
     }
 
-    for await (const bytes of fetchSegments(media.segmentUrls, controller.signal, media.segmentRanges ?? null)) {
+    for await (const encrypted of fetchSegments(media.segmentUrls, controller.signal, media.segmentRanges ?? null)) {
+      const bytes = await decrypt(encrypted, media.segmentKeys?.[written]);
       written += 1;
       const progress = Math.round((written / total) * 90);
       // Every report is a message plus a session-storage write plus a popup re-render,
@@ -523,7 +553,7 @@ async function runHlsJob(job) {
               audioUrl,
               controller.signal,
               rangeHeaders(media.audio.segmentRanges?.[written - 1])
-            ),
+            ).then((encrypted) => decrypt(encrypted, media.audio.segmentKeys?.[written - 1])),
             mux.audioTrackId,
             mux.sequence
           ));
@@ -550,6 +580,7 @@ async function runHlsJob(job) {
       }
     }
 
+    if (transmux && !initialized) throw new Error(t("error_unsupported_ts"));
     if (output) await output.finish();
     await writable.close();
     writable = null;
@@ -566,7 +597,7 @@ async function runHlsJob(job) {
       : filename;
     // Subtitles are fetched and joined before the video is offered: a save page
     // then reads both files from a job that is already finished writing.
-    sidecar = await prepareSubtitleSidecar(job, media, controller.signal);
+    sidecar = await prepareSubtitleSidecar(job, media, controller.signal, decrypt);
     await offerDownload(job, handle, tempName, outputFilename);
     if (sidecar) await dispatchSubtitleSidecar(job, sidecar, outputFilename);
   } catch (error) {

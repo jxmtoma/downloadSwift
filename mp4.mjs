@@ -515,6 +515,16 @@ export function createProgressiveMp4(initSegment) {
         writeDuration(trak, tkhd.body + (trak[tkhd.body] === 1 ? 28 : 20), trak[tkhd.body], seconds, movieTimescale);
         const mdhd = findBox(trak, ["trak", "mdia", "mdhd"]);
         writeDuration(trak, mdhd.body + (trak[mdhd.body] === 1 ? 24 : 16), trak[mdhd.body], seconds, track.timescale);
+        // DASH init segments may have a single zero-duration edit. Leaving it
+        // unchanged hides every sample, even with correct tkhd/mdhd durations.
+        // Keep media_time (encoder delay) and any explicitly authored edits.
+        const elst = findBox(trak, ["trak", "edts", "elst"]);
+        const trakView = new DataView(trak.buffer);
+        if (elst && trakView.getUint32(elst.body + 4) === 1
+          && (trak[elst.body] === 1 ? trakView.getBigUint64(elst.body + 8) === 0n
+            : trakView.getUint32(elst.body + 8) === 0)) {
+          writeDuration(trak, elst.body + 8, trak[elst.body], seconds, movieTimescale);
+        }
 
         // Everything above stbl is kept as authored; only the sample tables,
         // which a fragmented file leaves empty, are rebuilt.

@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "将直接视频文件和未加密的 HLS 与 DASH 流保存到本地：画质选择、字幕、仅音频、MP4 输出、无跟踪。" },
+  "extension_description": { "message": "保存直接视频及兼容的 HLS（含 AES-128）和 DASH：画质、字幕、仅音频、MP4、无跟踪。" },
   "brand_subtitle": { "message": "私密视频保存工具" },
   "state_off": { "message": "已关闭" },
   "state_active": { "message": "已启用" },
@@ -120,7 +120,7 @@
   "error_site_unresolved": { "message": "此页面未返回可下载的视频流。" },
   "error_dash_unsupported": { "message": "此 DASH 清单使用了暂不支持的分片格式。" },
   "error_byte_range_hls": { "message": "尚不支持跨越不连续点或更改初始化段的字节范围。" },
-  "error_encrypted_hls": { "message": "不支持加密或受 DRM 保护的 HLS 流。" },
+  "error_encrypted_hls": { "message": "此 HLS 流使用了不支持或无效的加密方式，或受 DRM 保护。" },
   "error_no_segments": { "message": "HLS 播放列表中没有视频片段。" },
   "error_unsupported_ts": { "message": "此 TS 流不包含受支持的 H.264/AAC 媒体。" },
   "unknown_error": { "message": "未知错误" },

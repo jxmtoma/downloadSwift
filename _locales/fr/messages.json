@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "Enregistrez vidéos directes et flux HLS et DASH non chiffrés : choix de la qualité, sous-titres, audio seul, MP4, sans traçage." },
+  "extension_description": { "message": "Enregistrez vidéos directes, HLS compatible (AES-128 inclus) et DASH : qualité, sous-titres, audio seul, MP4, sans traçage." },
   "brand_subtitle": { "message": "Enregistreur vidéo privé" },
   "state_off": { "message": "Désactivé" },
   "state_active": { "message": "Actif" },
@@ -120,7 +120,7 @@
   "error_site_unresolved": { "message": "Cette page n’a fourni aucun flux téléchargeable." },
   "error_dash_unsupported": { "message": "Ce manifeste DASH utilise un découpage en segments qui n’est pas encore pris en charge." },
   "error_byte_range_hls": { "message": "Les plages d'octets couvrant des discontinuités ou des segments d'initialisation changeants ne sont pas encore prises en charge." },
-  "error_encrypted_hls": { "message": "Les flux HLS chiffrés ou protégés par DRM ne sont pas pris en charge." },
+  "error_encrypted_hls": { "message": "Ce flux HLS utilise un chiffrement non pris en charge ou invalide, ou un DRM." },
   "error_no_segments": { "message": "La liste HLS ne contient aucun segment vidéo." },
   "error_unsupported_ts": { "message": "Ce flux TS ne contient aucun média H.264/AAC pris en charge." },
   "unknown_error": { "message": "erreur inconnue" },

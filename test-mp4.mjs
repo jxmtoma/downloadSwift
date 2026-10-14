@@ -274,4 +274,45 @@ assert.equal(
   "the tables must describe as many samples as were written"
 );
 
+// Bilibili's init has a zero-length edit with a nonzero media_time. Updating
+// tkhd/mdhd alone still makes a finished movie play as zero seconds.
+for (const version of [0, 1]) {
+  for (const duration of [0, 1000]) {
+    const edit = new Uint8Array(version ? 28 : 20);
+    const editView = view(edit);
+    edit[0] = version;
+    editView.setUint32(4, 1);
+    if (version) {
+      editView.setBigUint64(8, BigInt(duration));
+      editView.setBigInt64(16, 2667n);
+      editView.setUint32(24, 0x10000);
+    } else {
+      editView.setUint32(8, duration);
+      editView.setInt32(12, 2667);
+      editView.setUint32(16, 0x10000);
+    }
+    const initialMoov = findBox(videoInit, ["moov"]);
+    const initialTrak = findBox(videoInit, ["moov", "trak"]);
+    const trakWithEdit = makeBox("trak",
+      ...[...boxes(videoInit, initialTrak.body, initialTrak.end)]
+        .filter(({ type }) => type !== "edts").map(({ at, end }) => videoInit.subarray(at, end)),
+      makeBox("edts", makeBox("elst", edit)));
+    const initWithEdit = makeBox("moov",
+      ...[...boxes(videoInit, initialMoov.body, initialMoov.end)]
+        .map(({ type, at, end }) => type === "trak" ? trakWithEdit : videoInit.subarray(at, end)));
+    const builder = createProgressiveMp4(initWithEdit);
+    const mdat = findBox(videoSegment, ["mdat"]);
+    builder.addFragment(videoMoof, videoSegment.subarray(mdat.at, mdat.end));
+    const result = builder.moov();
+    const elst = findBox(result, ["moov", "trak", "edts", "elst"]);
+    const tkhd = findBox(result, ["moov", "trak", "tkhd"]);
+    const actual = version ? Number(view(result).getBigUint64(elst.body + 8))
+      : view(result).getUint32(elst.body + 8);
+    assert.equal(actual, duration || view(result).getUint32(tkhd.body + 20));
+    assert.ok(actual > 0, "the edit must expose the downloaded samples");
+    assert.deepEqual(result.subarray(elst.body + (version ? 16 : 12), elst.end),
+      edit.subarray(version ? 16 : 12), "preserve encoder delay and playback rate");
+  }
+}
+
 console.log("MP4 track merge check passed");

@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import vm from "node:vm";
+import { createCipheriv, webcrypto } from "node:crypto";
 import { boxes, findBox } from "./mp4.mjs";
+
+const muxSandbox = { globalThis: null, self: null, window: {} };
+muxSandbox.globalThis = muxSandbox;
+muxSandbox.self = muxSandbox;
+vm.runInNewContext(fs.readFileSync("vendor/mux-mp4.min.js", "utf8"), muxSandbox);
+globalThis.muxjs = muxSandbox.muxjs;
+globalThis.crypto ??= webcrypto;
 
 const stored = {};
 const runtimeListeners = [];
@@ -448,7 +457,7 @@ chrome.runtime.sendMessage = async (message) => {
   return { ok: true };
 };
 
-await import("./offscreen.js");
+const { handleOffscreenMessage } = await import("./offscreen.js");
 runtimeListeners[1]({
   filename: "Page title.mp4",
   job: { ...job, id: "offscreen-direct" },
@@ -792,5 +801,212 @@ options = undefined;
 downloadListeners[0]({ id: 8, state: { current: "complete" } });
 await new Promise((resolve) => setTimeout(resolve, 0));
 assert.equal(options, undefined, "a sidecar completion is not stashed for a job mapping");
+
+// Bilibili tracks must retry body failures, not just failures before headers.
+// Padding pushes the video across a range boundary without adding fake samples.
+const padding = new Uint8Array(1024 * 1024);
+new DataView(padding.buffer).setUint32(0, padding.length);
+padding.set(new TextEncoder().encode("free"), 4);
+const biliTracks = Object.fromEntries(["video", "audio"].map((kind) => [kind,
+  new Uint8Array([...fixture(`${kind}-init.m4s`),
+    ...kind === "video" ? padding : [], ...fixture(`${kind}-1.m4s`)])
+]));
+const biliRanges = [];
+let breakBody = true;
+globalThis.fetch = async (url, options) => {
+  if (url.includes("pagelist")) return Response.json({ data: [{ cid: 1, part: "Retry clip" }] });
+  if (url.includes("playurl")) return Response.json({ data: { dash: {
+    duration: 9,
+    ...Object.fromEntries(["video", "audio"].map((kind) => [kind, [{
+      baseUrl: `https://cdn.example/${kind}.m4s`, bandwidth: 100000,
+      SegmentBase: { Initialization: `0-${fixture(`${kind}-init.m4s`).length - 1}` }
+    }]]))
+  } } });
+  const kind = url.includes("video.m4s") ? "video" : "audio";
+  const bytes = biliTracks[kind];
+  const [, from, to] = /^bytes=(\d+)-(\d+)$/.exec(options.headers.Range);
+  const start = Number(from);
+  const end = Math.min(Number(to), bytes.length - 1);
+  biliRanges.push({ kind, start, end });
+  const headers = { "content-range": `bytes ${start}-${end}/${bytes.length}` };
+  if (kind === "video" && start > 0 && breakBody) {
+    breakBody = false;
+    return new Response(new ReadableStream({
+      start(controller) { controller.enqueue(bytes.slice(start, start + 17)); },
+      pull(controller) { controller.error(new TypeError("network error")); }
+    }), { status: 206, headers });
+  }
+  return new Response(bytes.slice(start, end + 1), { status: 206, headers });
+};
+const biliReady = waitFor("bili-retry", "download-ready");
+runtimeListeners[1]({
+  job: { id: "bili-retry", item: {
+    adapter: "bilibili", format: "DASH", kind: "playlist",
+    url: "https://www.bilibili.com/video/BV1Xo4Q6uEWj/"
+  } }, target: "offscreen", type: "start-hls"
+}, null, () => {});
+await Promise.race([biliReady, new Promise((_, reject) => {
+  const timer = setTimeout(() => reject(new Error("Bilibili retry did not finish")), 5000);
+  timer.unref();
+})]);
+const videoRanges = biliRanges.filter(({ kind, start }) => kind === "video" && start > 0);
+assert.equal(videoRanges.length, 3, "one failed chunk, its retry, and the final chunk");
+assert.deepEqual(videoRanges[0], videoRanges[1], "a failed body retries the exact same bytes");
+assert.equal(videoRanges[2].start, videoRanges[1].end + 1);
+const biliOutput = bytesFor("downloadswift-bili-retry.mp4").bytes;
+assert.deepEqual([...boxes(biliOutput)].map(({ type }) => type), ["ftyp", "mdat", "moov"]);
+const biliMdat = findBox(biliOutput, ["mdat"]);
+const expectedPayload = ["video", "audio"].reduce((sum, kind) => {
+  const box = findBox(fixture(`${kind}-1.m4s`), ["mdat"]);
+  return sum + box.end - box.body;
+}, 0);
+assert.equal(biliMdat.end - biliMdat.body, expectedPayload, "retry must not duplicate or drop samples");
+assert.equal(sentMessages.filter((message) => message.jobId === "bili-retry"
+  && message.changes?.state === "downloading").at(-1).changes.progress, 90);
+
+// Identity AES-128 TS downloads are decrypted before the existing transmuxer.
+const encryptedTs = new Uint8Array(fs.readFileSync("test-fixtures/h264-aac.ts"));
+const aesKey = new Uint8Array(16).map((_, index) => index + 11);
+const aesIv = new Uint8Array(16);
+aesIv[15] = 1;
+const cipher = createCipheriv("aes-128-cbc", aesKey, aesIv);
+const encryptedBytes = new Uint8Array(Buffer.concat([cipher.update(encryptedTs), cipher.final()]));
+const encryptedPlaylist = `#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="https://keys.example/key",IV=0x00000000000000000000000000000001
+#EXTINF:4,
+https://media.example/encrypted.ts
+#EXT-X-ENDLIST`;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("encrypted.m3u8")) return new Response(encryptedPlaylist);
+  if (url === "https://keys.example/key") return new Response(aesKey);
+  if (url === "https://media.example/encrypted.ts") return new Response(encryptedBytes);
+  return new Response(null, { status: 404 });
+};
+const encryptedReady = waitFor("offscreen-hls-encrypted", "download-ready");
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-hls-encrypted",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/encrypted.m3u8" },
+    pageTitle: "Encrypted fixture"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await encryptedReady;
+const encryptedOutput = bytesFor("downloadswift-offscreen-hls-encrypted.mp4").bytes;
+assert.deepEqual([...boxes(encryptedOutput)].map(({ type }) => type), ["ftyp", "mdat", "moov"]);
+const encryptedMdat = findBox(encryptedOutput, ["mdat"]);
+assert.ok(encryptedMdat.end > encryptedMdat.body, "the progressive MP4 contains TS-derived samples");
+assert.ok(sentMessages.some((message) => message.type === "extend-headers"
+  && message.hosts.includes("keys.example")), "key hosts receive the existing header replay rule");
+globalThis.fetch = async (url) => {
+  if (url.endsWith("clear.m3u8")) return new Response(encryptedPlaylist.replace("#EXT-X-KEY:METHOD=AES-128,URI=\"https://keys.example/key\",IV=0x00000000000000000000000000000001\n", "").replace("encrypted.ts", "clear.ts"));
+  if (url === "https://media.example/clear.ts") return new Response(encryptedTs);
+  return new Response(null, { status: 404 });
+};
+const clearReady = waitFor("offscreen-hls-clear-ts", "download-ready");
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-hls-clear-ts",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/clear.m3u8" },
+    pageTitle: "Clear fixture"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await clearReady;
+const clearOutput = bytesFor("downloadswift-offscreen-hls-clear-ts.mp4").bytes;
+const clearMdat = findBox(clearOutput, ["mdat"]);
+assert.equal(Buffer.compare(
+  encryptedOutput.subarray(encryptedMdat.body, encryptedMdat.end),
+  clearOutput.subarray(clearMdat.body, clearMdat.end)
+), 0, "encrypted TS produces the same MP4 sample bytes as its clear fixture");
+
+globalThis.fetch = async (url) => {
+  if (url.endsWith("stub-then-real.m3u8")) return new Response(`#EXTM3U
+#EXTINF:1,
+stub.ts
+#EXTINF:4,
+real.ts
+#EXT-X-ENDLIST`);
+  if (url.endsWith("stub.ts")) return new Response(Uint8Array.of(0x47));
+  if (url.endsWith("real.ts")) return new Response(encryptedTs);
+  return new Response(null, { status: 404 });
+};
+const stubThenReal = waitFor("offscreen-hls-stub-then-real", "download-ready");
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-hls-stub-then-real",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/stub-then-real.m3u8" },
+    pageTitle: "Stub then real"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await stubThenReal;
+const stubThenRealOutput = bytesFor("downloadswift-offscreen-hls-stub-then-real.mp4").bytes;
+assert.deepEqual([...boxes(stubThenRealOutput)].map(({ type }) => type), ["ftyp", "mdat", "moov"]);
+
+globalThis.fetch = async (url) => {
+  if (url.endsWith("all-stubs.m3u8")) return new Response(`#EXTM3U
+#EXTINF:1,
+stub.ts
+#EXT-X-ENDLIST`);
+  if (url.endsWith("stub.ts")) return new Response(Uint8Array.of(0x47));
+  return new Response(null, { status: 404 });
+};
+await handleOffscreenMessage({
+  job: {
+    id: "offscreen-hls-all-stubs",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/all-stubs.m3u8" },
+    pageTitle: "Stub only"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, true);
+assert.ok(sentMessages.some((message) => message.jobId === "offscreen-hls-all-stubs"
+  && message.changes?.state === "error"
+  && message.changes.error === "error_unsupported_ts"));
+assert.ok(!sentMessages.some((message) => message.jobId === "offscreen-hls-all-stubs"
+  && message.type === "download-ready"));
+
+const encryptAes = (bytes, key, lastIvByte) => {
+  const iv = new Uint8Array(16);
+  iv[15] = lastIvByte;
+  const cipher = createCipheriv("aes-128-cbc", key, iv);
+  return new Uint8Array(Buffer.concat([cipher.update(bytes), cipher.final()]));
+};
+const fmp4Init = fixture("video-init.m4s");
+const fmp4Segment = fixture("video-1.m4s");
+const fmp4Key = new Uint8Array(16).fill(23);
+const encryptedFmp4Init = await encryptAes(fmp4Init, fmp4Key, 1);
+const encryptedFmp4Segment = await encryptAes(fmp4Segment, fmp4Key, 2);
+const encryptedFmp4Playlist = `#EXTM3U
+#EXT-X-KEY:METHOD=AES-128,URI="https://keys.example/init",IV=0x00000000000000000000000000000001
+#EXT-X-MAP:URI="https://media.example/init.m4s"
+#EXT-X-KEY:METHOD=AES-128,URI="https://keys.example/media",IV=0x00000000000000000000000000000002
+#EXTINF:4,
+https://media.example/media.m4s
+#EXT-X-ENDLIST`;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("encrypted-fmp4.m3u8")) return new Response(encryptedFmp4Playlist);
+  if (url === "https://keys.example/init" || url === "https://keys.example/media") return new Response(fmp4Key);
+  if (url === "https://media.example/init.m4s") return new Response(encryptedFmp4Init);
+  if (url === "https://media.example/media.m4s") return new Response(encryptedFmp4Segment);
+  return new Response(null, { status: 404 });
+};
+const encryptedFmp4Ready = waitFor("offscreen-hls-encrypted-fmp4", "download-ready");
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-hls-encrypted-fmp4",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/encrypted-fmp4.m3u8" },
+    pageTitle: "Encrypted fMP4 fixture"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await encryptedFmp4Ready;
+const encryptedFmp4Output = bytesFor("downloadswift-offscreen-hls-encrypted-fmp4.mp4").bytes;
+assert.deepEqual([...boxes(encryptedFmp4Output)].map(({ type }) => type), ["ftyp", "mdat", "moov"]);
 
 console.log("managed and direct download flow check passed");

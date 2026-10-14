@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Video &amp; Media Downloader — Private Browser Video Downloader</title>
-    <meta name="description" content="Download supported direct video files and unencrypted HLS and DASH streams with quality choice, subtitles, and audio-only output — a private, on-device extension for Chrome, Microsoft Edge, Firefox, and Safari.">
+    <meta name="description" content="Download supported direct video files, compatible HLS including AES-128, and DASH streams with quality choice, subtitles, and audio-only output — a private, on-device extension for Chrome, Microsoft Edge, Firefox, and Safari.">
     <link rel="canonical" href="https://jxmtoma.github.io/downloadSwift/">
     <link rel="stylesheet" href="styles.css">
     <script src="site.js" defer></script>
@@ -21,7 +21,7 @@
       <section class="hero">
         <p class="eyebrow">Free, private, on-device browser extension</p>
         <h1>Save supported web video without tracking.</h1>
-        <p class="lede">Detect direct HTTPS video files and compatible unencrypted HLS and DASH streams, then save them locally with quality choice, subtitle sidecars, audio-only output, and MP4 progress.</p>
+        <p class="lede">Detect direct HTTPS video files and compatible on-demand HLS and DASH streams, including AES-128 HLS, then save them locally with quality choice, subtitle sidecars, audio-only output, and MP4 progress.</p>
         <div id="install" class="actions">
           <a class="button primary" href="https://chromewebstore.google.com/detail/downloadswift/dkbifgckbphgghkpgapmcekpogeppenm">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-5.344 9.257c.206.01.413.016.621.016 6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.364zM12 16.364a4.364 4.364 0 1 1 0-8.728 4.364 4.364 0 0 1 0 8.728Z"/></svg>
@@ -36,7 +36,7 @@
             Install for Firefox
           </a>
         </div>
-        <p class="meta">Free · Version 0.6.0 · Released September 4, 2026 · <a href="#changelog">See what changed</a></p>
+        <p class="meta">Free · Version 0.7.0 · Released October 13, 2026 · <a href="#changelog">See what changed</a></p>
       </section>
 
       <section class="grid" aria-label="Features">
@@ -81,7 +81,7 @@
 
       <section class="notice">
         <h2>Designed for media you may save</h2>
-        <p>YouTube, DRM, encrypted or live streams, paywall bypassing, and access-control bypassing are not supported.</p>
+        <p>YouTube, DRM, other unsupported HLS encryption, encrypted DASH, or live streams, paywall bypassing, and access-control bypassing are not supported.</p>
       </section>
 
       <section class="notice" id="browsers">
@@ -97,7 +97,15 @@
       <section class="notice" id="changelog">
         <h2>Changelog</h2>
 
-        <h3>0.6.0 — September 4, 2026 <span class="tag">latest</span></h3>
+        <h3>0.7.0 — October 13, 2026 <span class="tag">latest</span></h3>
+        <ul>
+          <li>Download on-demand HLS with AES-128 encryption.</li>
+          <li>Skip packetless MPEG-TS stub segments during downloads and previews.</li>
+          <li>Improve retries and progress for separately downloaded video and audio files.</li>
+          <li>Fix downloaded videos that incorrectly play as zero seconds.</li>
+        </ul>
+
+        <h3>0.6.0 — September 4, 2026</h3>
         <ul>
           <li>Save a stream's subtitles as a WebVTT sidecar file next to the video.</li>
           <li>Add an audio-only download for streams that keep audio in its own rendition.</li>

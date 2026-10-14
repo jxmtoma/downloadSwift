@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "直接動画ファイルと暗号化されていない HLS・DASH ストリームをローカルに保存。画質選択、字幕、音声のみ、MP4 出力、トラッキングなし。" },
+  "extension_description": { "message": "直接動画、対応 HLS（AES-128 を含む）・DASH を保存。画質、字幕、音声のみ、MP4、追跡なし。" },
   "brand_subtitle": { "message": "プライベート動画保存" },
   "state_off": { "message": "オフ" },
   "state_active": { "message": "有効" },
@@ -120,7 +120,7 @@
   "error_site_unresolved": { "message": "このページからダウンロードできるストリームを取得できませんでした。" },
   "error_dash_unsupported": { "message": "この DASH マニフェストは未対応のセグメント形式を使用しています。" },
   "error_byte_range_hls": { "message": "不連続区間や初期化セグメントの変更をまたぐバイトレンジはまだサポートされていません。" },
-  "error_encrypted_hls": { "message": "暗号化または DRM 保護された HLS ストリームには対応していません。" },
+  "error_encrypted_hls": { "message": "この HLS ストリームの暗号化方式は未対応または無効です。DRM にも対応していません。" },
   "error_no_segments": { "message": "HLS プレイリストに動画セグメントがありません。" },
   "error_unsupported_ts": { "message": "この TS ストリームには対応する H.264/AAC メディアが含まれていません。" },
   "unknown_error": { "message": "不明なエラー" },

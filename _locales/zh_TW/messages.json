@@ -1,6 +1,6 @@
 {
   "extension_name": { "message": "Video & Media Downloader" },
-  "extension_description": { "message": "將直接影片檔案和未加密的 HLS 與 DASH 串流儲存到本機：畫質選擇、字幕、僅音訊、MP4 輸出、無追蹤。" },
+  "extension_description": { "message": "儲存直接影片及相容的 HLS（含 AES-128）和 DASH：畫質、字幕、僅音訊、MP4、無追蹤。" },
   "brand_subtitle": { "message": "私密影片儲存工具" },
   "state_off": { "message": "已關閉" },
   "state_active": { "message": "已啟用" },
@@ -120,7 +120,7 @@
   "error_site_unresolved": { "message": "此頁面未傳回可下載的影片串流。" },
   "error_dash_unsupported": { "message": "此 DASH 資訊清單使用了尚不支援的分段格式。" },
   "error_byte_range_hls": { "message": "尚不支援跨越不連續點或變更初始化段的位元組範圍。" },
-  "error_encrypted_hls": { "message": "不支援加密或受 DRM 保護的 HLS 串流。" },
+  "error_encrypted_hls": { "message": "此 HLS 串流使用不支援或無效的加密方式，或受 DRM 保護。" },
   "error_no_segments": { "message": "HLS 播放清單中沒有影片片段。" },
   "error_unsupported_ts": { "message": "此 TS 串流不含受支援的 H.264/AAC 媒體。" },
   "unknown_error": { "message": "未知錯誤" },

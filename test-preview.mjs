@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import vm from "node:vm";
+import { createCipheriv, webcrypto } from "node:crypto";
+import { createHlsDecryptor, createTsTransmuxer, rangeHeader } from "./hls.mjs";
 import { firstFrameDataUrl, makePreview, queueForItem, videoDimensions } from "./preview.mjs";
+
+globalThis.crypto ??= webcrypto;
 
 let drawn = null;
 let seekedTo = null;
@@ -147,5 +153,83 @@ for (const url of rows) {
     `${url} ran its own work out of order`
   );
 }
+
+// Exercise the actual popup stream builder with a packetless stub followed by
+// an encrypted TS segment; later segment and key hosts must already be armed.
+const muxSandbox = { globalThis: null, self: null, window: {} };
+muxSandbox.globalThis = muxSandbox;
+muxSandbox.self = muxSandbox;
+vm.runInNewContext(fs.readFileSync("vendor/mux-mp4.min.js", "utf8"), muxSandbox);
+const previewKey = new Uint8Array(16).fill(9);
+const previewIv = new Uint8Array(16);
+previewIv[15] = 2;
+const previewPlain = new Uint8Array(fs.readFileSync("test-fixtures/h264-aac.ts"));
+const previewCipher = createCipheriv("aes-128-cbc", previewKey, previewIv);
+const previewEncrypted = new Uint8Array(Buffer.concat([
+  previewCipher.update(previewPlain), previewCipher.final()
+]));
+let previewMedia = {
+  bitsPerSecond: 1000,
+  durationSeconds: 4,
+  extension: "ts",
+  segmentKeys: [null, {
+    iv: "0x00000000000000000000000000000002",
+    keyUrl: "https://keys.example/key",
+    sequence: "1"
+  }],
+  segmentUrls: ["https://media.example/stub.ts", "https://cdn2.example/real.ts"]
+};
+let armedHosts;
+let disarmed = 0;
+const source = fs.readFileSync("popup.js", "utf8");
+const previewFunction = source.match(/async function streamPreviewBlob\(item\) \{[\s\S]*?\n\}\n\n\/\/ What a segment-list/)[0]
+  .replace(/\n\n\/\/ What a segment-list$/, "");
+const streamPreviewBlob = vm.runInNewContext(`(${previewFunction})`, {
+  armPreview: async (_item, hosts) => { armedHosts = hosts; return { ok: true, ruleId: 17 }; },
+  createHlsDecryptor,
+  createTsTransmuxer,
+  disarmPreview: async (_item, ruleId) => { assert.equal(ruleId, 17); disarmed += 1; },
+  getMedia: async () => previewMedia,
+  globalThis: { muxjs: muxSandbox.muxjs },
+  rangeHeader,
+  readJson: async () => null,
+  readBytes: async (url) => {
+    if (url === "https://keys.example/key") return previewKey;
+    if (url.endsWith("stub.ts")) return Uint8Array.of(0x47);
+    if (url.endsWith("real.ts")) return previewEncrypted;
+    throw new Error(`Unexpected preview fetch: ${url}`);
+  },
+  readText: async () => "",
+  storeSize: async () => {},
+  URL,
+  Blob,
+  t: (key) => key
+});
+const streamItem = { format: "HLS", url: "https://media.example/master.m3u8" };
+const previewBlob = await streamPreviewBlob(streamItem);
+assert.equal(previewBlob.type, "video/mp4");
+assert.ok(previewBlob.size > 1000);
+assert.ok(armedHosts.includes("keys.example") && armedHosts.includes("cdn2.example"));
+assert.equal(disarmed, 1, "successful preview disarms its temporary host rule");
+
+previewMedia = { ...previewMedia, segmentKeys: [null, null] };
+const allStubPreview = vm.runInNewContext(`(${previewFunction})`, {
+  armPreview: async (_item, hosts) => { armedHosts = hosts; return { ok: true, ruleId: 18 }; },
+  createHlsDecryptor,
+  createTsTransmuxer,
+  disarmPreview: async (_item, ruleId) => { assert.equal(ruleId, 18); disarmed += 1; },
+  getMedia: async () => previewMedia,
+  globalThis: { muxjs: muxSandbox.muxjs },
+  rangeHeader,
+  readJson: async () => null,
+  readBytes: async () => Uint8Array.of(0x47),
+  readText: async () => "",
+  storeSize: async () => {},
+  URL,
+  Blob,
+  t: (key) => key
+});
+await assert.rejects(() => allStubPreview(streamItem), /error_unsupported_ts/);
+assert.equal(disarmed, 2, "failed preview also disarms its temporary host rule");
 
 console.log("preview frame check passed");

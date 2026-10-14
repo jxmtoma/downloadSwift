@@ -49,9 +49,11 @@ export async function getMedia(item, { domParser = globalThis.DOMParser, fetchJs
       const subtitle = parseHlsMedia(await fetchText(selected.subtitleUrl), selected.subtitleUrl);
       if (subtitle.segmentUrls.length) {
         media.subtitle = {
+          ...subtitle.initKey ? { initKey: subtitle.initKey } : {},
           initUrl: subtitle.initUrl,
           segmentDurations: subtitle.segmentDurations,
           ...subtitle.segmentRanges ? { segmentRanges: subtitle.segmentRanges } : {},
+          ...subtitle.segmentKeys ? { segmentKeys: subtitle.segmentKeys } : {},
           segmentUrls: subtitle.segmentUrls
         };
       }

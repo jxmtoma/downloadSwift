@@ -149,15 +149,13 @@ export function parseHlsMedia(text, baseUrl) {
   if (hasByteRanges && lines.filter((line) => line.startsWith("#EXT-X-MAP:")).length > 1) {
     throw new Error(t("error_byte_range_hls"));
   }
-  if (lines.some((line) => {
-    if (!line.startsWith("#EXT-X-KEY:")) return false;
-    return attributes(line).get("METHOD") !== "NONE";
-  })) {
-    throw new Error(t("error_encrypted_hls"));
-  }
-
-  const mapLine = lines.find((line) => line.startsWith("#EXT-X-MAP:"));
-  const mapValues = mapLine ? attributes(mapLine) : null;
+  let mediaSequence = 0n;
+  let activeKey = null;
+  let initKey = null;
+  let mapValues = null;
+  let sawMediaSequence = false;
+  const segmentKeys = [];
+  let hasEncryption = false;
 
   // EXTINF precedes its segment, so one pass pairs each duration with its URL.
   // The durations let subtitle segments be re-timestamped as they are joined.
@@ -169,6 +167,52 @@ export function parseHlsMedia(text, baseUrl) {
   const segmentDurations = [];
   const segmentRanges = [];
   for (const line of lines) {
+    if (line.startsWith("#EXT-X-MEDIA-SEQUENCE:")) {
+      const value = line.slice("#EXT-X-MEDIA-SEQUENCE:".length);
+      if (sawMediaSequence || segmentUrls.length || !/^\d+$/.test(value)) {
+        throw new Error(t("error_encrypted_hls"));
+      }
+      sawMediaSequence = true;
+      mediaSequence = BigInt(value);
+      if (mediaSequence > 0xffffffffffffffffn) throw new Error(t("error_encrypted_hls"));
+      continue;
+    }
+    if (line.startsWith("#EXT-X-KEY:")) {
+      const values = attributes(line);
+      const method = values.get("METHOD");
+      if (method === "NONE") {
+        activeKey = null;
+        continue;
+      }
+      if (method !== "AES-128" || (values.has("KEYFORMAT") && values.get("KEYFORMAT") !== "identity")) {
+        throw new Error(t("error_encrypted_hls"));
+      }
+      const versions = values.get("KEYFORMATVERSIONS");
+      if (versions != null && (!/^\d+(?:\/\d+)*$/.test(versions) || !versions.split("/").includes("1"))) {
+        throw new Error(t("error_encrypted_hls"));
+      }
+      const keyUri = values.get("URI");
+      if (!keyUri || keyUri.trim() !== keyUri) throw new Error(t("error_encrypted_hls"));
+      let keyUrl;
+      try { keyUrl = new URL(keyUri, baseUrl); } catch { throw new Error(t("error_encrypted_hls")); }
+      if (keyUrl.protocol !== "https:" || keyUrl.username || keyUrl.password) throw new Error(t("error_encrypted_hls"));
+      const iv = values.get("IV");
+      if (iv != null && !/^0[xX][\da-fA-F]{1,32}$/.test(iv)) throw new Error(t("error_encrypted_hls"));
+      activeKey = {
+        keyUrl: keyUrl.href,
+        ...(iv ? { iv: `0x${iv.slice(2).toLowerCase().padStart(32, "0")}` } : {})
+      };
+      continue;
+    }
+    if (line.startsWith("#EXT-X-MAP:")) {
+      if (!mapValues) {
+        mapValues = attributes(line);
+        initKey = activeKey ? { ...activeKey } : null;
+        if (initKey && !initKey.iv) throw new Error(t("error_encrypted_hls"));
+        if (initKey) hasEncryption = true;
+      }
+      continue;
+    }
     if (line.startsWith("#EXTINF:")) {
       pendingDuration = Number.parseFloat(line.slice(8)) || 0;
       continue;
@@ -182,6 +226,13 @@ export function parseHlsMedia(text, baseUrl) {
     if (line.startsWith("#")) continue;
     segmentUrls.push(new URL(line, baseUrl).href);
     segmentDurations.push(pendingDuration);
+    if (activeKey) {
+      if (mediaSequence > 0xffffffffffffffffn) throw new Error(t("error_encrypted_hls"));
+      segmentKeys.push({ ...activeKey, sequence: mediaSequence.toString() });
+    }
+    else segmentKeys.push(null);
+    if (activeKey) hasEncryption = true;
+    mediaSequence += 1n;
     pendingDuration = 0;
     let range = null;
     if (pendingRange) {
@@ -216,9 +267,47 @@ export function parseHlsMedia(text, baseUrl) {
     extension,
     ...initRange ? { initRange } : {},
     initUrl,
+    ...hasEncryption ? { segmentKeys, ...(initKey ? { initKey } : {}) } : {},
     segmentDurations,
     ...segmentRanges.some(Boolean) ? { segmentRanges } : {},
     segmentUrls
+  };
+}
+
+// The key cache lives as long as one preview or download, never across jobs.
+export function createHlsDecryptor(fetchBytes) {
+  const keys = new Map();
+  return async (bytes, metadata) => {
+    if (!metadata) return bytes;
+    let key = keys.get(metadata.keyUrl);
+    if (!key) {
+      key = (async () => {
+        const raw = await fetchBytes(metadata.keyUrl);
+        if (raw.byteLength !== 16) throw new Error(t("error_encrypted_hls"));
+        try {
+          return await crypto.subtle.importKey("raw", raw, "AES-CBC", false, ["decrypt"]);
+        } catch {
+          throw new Error(t("error_encrypted_hls"));
+        }
+      })();
+      keys.set(metadata.keyUrl, key);
+    }
+    key = await key;
+    const iv = metadata.iv
+      ? Uint8Array.from(metadata.iv.slice(2).match(/../g), (byte) => Number.parseInt(byte, 16))
+      : (() => {
+        const value = BigInt(metadata.sequence);
+        const result = new Uint8Array(16);
+        for (let index = 0; index < 16; index += 1) {
+          result[15 - index] = Number((value >> BigInt(index * 8)) & 255n);
+        }
+        return result;
+      })();
+    try {
+      return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-CBC", iv }, key, bytes));
+    } catch {
+      throw new Error(t("error_encrypted_hls"));
+    }
   };
 }
 
@@ -230,6 +319,8 @@ export function createTsTransmuxer(muxjs) {
 
   return (bytes) => {
     chunks = [];
+    // A few playlists use a lone sync byte as a packetless opening stub.
+    if (!bytes.length || (bytes.length === 1 && bytes[0] === 0x47)) return chunks;
     transmuxer.push(bytes);
     transmuxer.flush();
     if (!chunks.length) {

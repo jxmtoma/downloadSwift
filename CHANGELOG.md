@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 — 2026-10-13
+
+- Support identity AES-128 encryption in on-demand HLS playlists.
+- Skip packetless MPEG-TS stub segments during download and preview.
+- Retry Bilibili video/audio response-body failures during bounded transfers
+  without dropping or duplicating bytes, and keep progress accurate.
+- Fill zero-duration single MP4 edits while preserving encoder delay, so videos
+  no longer report zero-second playback.
+
 ## 0.6.0 — 2026-09-04
 
 - Download byte-range HLS streams: segments that occupy ranges of one shared

@@ -52,8 +52,9 @@ and completed-session history can be cleared in the popup. Removing the
 extension deletes its browser-managed data.
 
 The extension is intended only for media the user owns or has permission to
-download. It does not support YouTube, DRM, encrypted streams, paywall bypassing,
-or access-control bypassing.
+download. It supports compatible on-demand HLS, including AES-128, and does not
+support YouTube, DRM, other HLS encryption, encrypted DASH streams, paywall
+bypassing, or access-control bypassing.
 
 Use of information received from browser APIs adheres to the applicable Chrome
 Web Store, Microsoft Edge Add-ons, Mozilla Add-on, and Apple App Store policies.
