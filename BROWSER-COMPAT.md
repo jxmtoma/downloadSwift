@@ -30,7 +30,7 @@ list in [`scripts/package.sh`](scripts/package.sh).
 | `downloads` API | ✓ | ✓ | ✗ |
 | `downloads.open` / `downloads.ui` | ✓ | ✗ | ✗ |
 | Notifications | ✓ with action buttons | ✓ click only | ✗ |
-| DNR `tabIds` condition | ✓ | ✗ rejects whole rule | ✗ rejects whole rule |
+| DNR `tabIds` condition | ✓ | ✓ (Firefox 113+) | Not used in this package |
 | DNR `requestDomains` | ✓ | ✓ | ✓ (16.4+) |
 | DNR `regexFilter` | ✓ (memory-budgeted) | varies | varies |
 | `webRequest` `extraHeaders` | ✓ | ✗ | ✗ |
@@ -58,10 +58,19 @@ Ordered by how long it took to find, not by severity.
 
 ### Firefox
 
-- **DNR rejects the entire rule on an unknown condition property.** `tabIds`
-  doesn't exist there, and the rejection took down every HLS/DASH download before
-  it started — not a degraded path, a total failure. `tabIds` is now applied only
-  when there's no background page ([`service-worker.mjs:257`](service-worker.mjs:257)).
+- **Background-page rules omit tab and initiator restrictions.** Current MDN
+  browser-compatibility data lists `RuleCondition.tabIds`, `initiatorDomains`,
+  and `requestDomains` as supported in Firefox 113 and later, including this
+  package's Firefox 140 minimum ([MDN compatibility data](https://github.com/mdn/browser-compat-data/blob/main/webextensions/api/declarativeNetRequest.json)).
+  The existing background-page workaround omits `tabIds` after a historical
+  report that Firefox rejected a rule; the precise cause and current runtime
+  behavior have not been revalidated. The fake Firefox tests model a restrictive
+  API surface and do not prove a current Firefox limitation. As a result, the
+  existing header replay rules in background-page mode have broader scope: they
+  match direct media URLs or stream hosts and may also affect matching page or
+  other requests while active. No vulnerability or data leak has been
+  demonstrated. The `tabIds` condition is applied only when there is no
+  background page ([`service-worker.mjs:257`](service-worker.mjs:257)).
 - **No notification action buttons**, and a notification click is not a user
   action ([1523523](https://bugzilla.mozilla.org/show_bug.cgi?id=1523523)), which
   `downloads.open` requires. Both routes to opening a finished file are therefore

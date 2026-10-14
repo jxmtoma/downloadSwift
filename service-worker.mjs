@@ -257,9 +257,10 @@ async function restoreDownloadUiIfIdle() {
   if (!active) await setDownloadUi(true);
 }
 
-// tabIds -1 keeps the rewrite on the extension's own fetches, never page
-// requests, but the condition is Chrome-only: Firefox and Safari reject the
-// whole rule as an unexpected property, which fails every header replay.
+// Service-worker rules use tabIds [-1]; background-page rules omit it as a
+// historical workaround. Current compatibility data lists Firefox tabIds
+// support; the old rejection has not been revalidated. URL/host matches in
+// background-page mode have no tab or initiator restriction.
 const scopedToExtension = !usesBackgroundPage;
 
 // Anchored urlFilter instead of regexFilter: signed CDN URLs are long enough

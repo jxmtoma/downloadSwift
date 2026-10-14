@@ -18,21 +18,21 @@
     </header>
 
     <main class="document">
-      <p class="eyebrow">Effective August 4, 2026</p>
+      <p class="eyebrow">Effective October 14, 2026</p>
       <h1>Privacy Policy</h1>
       <p>Video &amp; Media Downloader has one purpose: detect media requested by a page the user chooses and save user-selected media to the user's device.</p>
 
-      <h2>Data handled on the device</h2>
-      <p>The extension processes HTTPS media URLs, page titles, download status, and limited request metadata (<code>Accept</code>, <code>Origin</code>, <code>Range</code>, and <code>Referer</code>). The browser may send the user's existing cookies directly back to the same HTTPS media host when fetching a selected file. The extension does not read, store, or transmit cookie values to the developer.</p>
-      <p>Detected media and download history are kept in the browser's session storage. Temporary media files are kept in browser-managed local storage only while a download is being prepared, then deleted after completion, cancellation, or failure. In Safari, which cannot report when its save flow has finished reading a prepared file, that file is instead deleted when the extension next starts.</p>
+      <h2>Data processed by the extension</h2>
+      <p>The extension processes HTTPS media URLs, page titles, download status, and limited request metadata (<code>Accept</code>, <code>Origin</code>, <code>Range</code>, and <code>Referer</code>). Showing detected media may automatically fetch previews, quality options, and size estimates before the user clicks Download. These requests can go to site API endpoints, playlist or manifest URLs, and media/CDN hosts, including hosts derived from a playlist or manifest. The browser may include permitted existing cookies, and the extension may replay the limited headers on these requests and downloads. The extension does not read or store cookie values, and does not transmit cookie values to the developer.</p>
+      <p>Detected media and download-job history are kept in the browser's session storage. Temporary prepared or staged files are stored in browser-managed local disk storage. Normal completion, cancellation, and failure attempt to remove these files, but an interruption or cleanup failure can leave them behind. The cleanup sweep preserves any temporary file referenced by a stored download job, regardless of that job's state. In Safari, save completion is not observable, so a completed handoff may keep its file for as long as the job continues to reference it. Unreferenced files become eligible for a later cleanup sweep after the job is cleared or the session ends; deletion is not guaranteed at the next extension start. Completed files in the browser's Downloads location remain under the user's control.</p>
 
-      <h2>No developer collection</h2>
-      <p>The extension has no analytics, advertising, tracking, or developer-operated backend. The developer does not receive, sell, share, or use browsing activity, media URLs, page titles, request metadata, downloaded files, or payment data. Media requests go only to the website or media host selected by the user.</p>
+      <h2>No developer telemetry</h2>
+      <p>The extension has no developer telemetry, analytics, advertising, tracking, or developer-operated backend. Its media and preparatory requests go to relevant site APIs and media/CDN hosts. The extension does not send cookie values to the developer.</p>
 
       <h2>Permissions</h2>
       <ul>
         <li><strong>Site access and webRequest:</strong> detect media requests on sites the user enables.</li>
-        <li><strong>declarativeNetRequest:</strong> replay only the request context needed for a user-selected media URL.</li>
+        <li><strong>declarativeNetRequest:</strong> replay limited request headers for related API, playlist, manifest, and media/CDN requests. In Firefox and Safari background-page mode, the existing rules omit tab and initiator restrictions and match direct media URLs or stream hosts; while active, matching page or other requests may also receive the replayed headers.</li>
         <li><strong>downloads and downloads.open:</strong> save the prepared file and perform only the open or show action selected by the user in Chrome and Edge. Firefox saves and reveals the file but does not request <code>downloads.open</code>, which it permits only from a user action. Chrome and Edge also use <code>downloads.ui</code> to suppress duplicate browser download UI during the managed handoff. Safari requests none of these permissions and hands the prepared file to its native save flow.</li>
         <li><strong>offscreen:</strong> prepare direct, HLS, and DASH downloads without opening another tab in Chrome and Edge. Firefox and Safari perform the same work in a background page.</li>
         <li><strong>storage:</strong> keep detected items and download state for the browser session.</li>

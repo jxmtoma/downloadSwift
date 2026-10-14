@@ -145,10 +145,11 @@
 - Hand prepared Safari files to its native save flow without requesting the
   unsupported downloads or notifications APIs, reporting the handoff rather than
   claiming a save Safari cannot confirm.
-- Collect temporary preparation files left behind by Safari's handoff or by a
-  worker restart when the extension next starts.
-- Scope the extension-only request rule to Chrome and Edge, the only browsers
-  that support it, so Firefox and Safari header replay is not rejected outright.
+- Sweep unclaimed temporary preparation files after Safari handoffs or worker
+  interruptions. Files still referenced by stored download jobs are preserved;
+  later sweeps can remove unclaimed leftovers.
+- Keep tab-scoped header rules in the service-worker context as a historical
+  compatibility workaround; background-page URL/host rules omit that restriction.
 - Finish a download whose completion arrives before the browser returns its
   download ID instead of leaving the job stalled.
 - Add Safari packaging, compatibility checks, local testing, and App Store
@@ -192,7 +193,7 @@
   keeping the popup responsive on streams with many segments.
 - Start direct downloads whose URLs carry long signing tokens, which could
   previously fail before the transfer began.
-- Apply the temporary header rule only to the extension's own requests.
+- Narrow temporary header rules to direct media URLs and stream hosts.
 - Use the page's origin as the referrer when the original request's headers
   are no longer available, so hosts that check it still accept the download.
 

@@ -20,7 +20,8 @@ over HTTPS by the current tab.
 ## Install it in Firefox
 
 Install the published add-on from [Mozilla Add-ons](https://addons.mozilla.org/addon/video-media-downloader/).
-For local development, run `sh scripts/package.sh`, open
+For local development, follow [Build from source](#build-from-source), then run
+`sh scripts/package.sh`, open
 `about:debugging#/runtime/this-firefox`, and use **Load Temporary Add-on** with
 `dist/firefox/manifest.json`.
 
@@ -34,7 +35,8 @@ sidecar gets its own save link there. App Store publication remains deliberately
 on hold until a live detect ▸ download ▸ save test produces a non-zero, playable
 file; the known zero-byte save causes are fixed.
 
-1. Run `sh scripts/package.sh` (Safari 26 or later on macOS).
+1. Follow [Build from source](#build-from-source), then run
+   `sh scripts/package.sh` (Safari 26 or later on macOS).
 2. In **Safari → Settings → Advanced**, enable **Show features for web developers**.
 3. In the **Developer** settings tab, click **Add Temporary Extension** and select
    `dist/safari`.
@@ -89,45 +91,62 @@ Most sites are found by watching requests, but some players never put a manifest
 URL on the wire at all: bilibili asks a private JSON endpoint and hands the
 result straight to the player, so nothing is observable. Those pages are
 recognised by URL instead, and only once the user has granted access to the site.
-The streams are resolved when the download starts, using the browser's existing
-session, so the available quality is whatever that account is entitled to. Each
+Showing a detected bilibili item can automatically query its API for quality
+options and size estimates before Download is clicked. These requests use the
+browser's existing session, so available qualities reflect that account. Each
 track is a separate whole file there, streamed and merged rather than buffered.
 
-Media URLs are stored only in the browser's in-memory session storage and are never
-sent to the developer. Detection requires optional access to HTTPS sites because
-video pages commonly use a different CDN domain.
+Media URLs and download-job history are stored in browser session storage. There
+is no developer telemetry. Showing detected media may automatically fetch a
+preview, quality options, or a size estimate before Download; requests can go to
+site APIs, playlist or manifest URLs, and media/CDN hosts, including hosts derived
+from those responses. The browser may include permitted existing cookies, and
+limited `Accept`, `Origin`, `Range`, and `Referer` headers may be replayed. The
+extension does not read or store cookie values. Detection requires optional
+access to HTTPS sites because video pages commonly use a different CDN domain.
 
 For direct files, the extension streams the video through its background processor
-before handing the browser a local file. It temporarily replays the detected
-request's `Referer`, `Origin`, `Accept`, and normalized `Range` headers only for
-that exact media URL, and only for the extension's own requests. When no
-`Referer` was captured, the page's own origin is used in its place. The session
-rule is removed as soon as the remote transfer finishes or fails.
+before handing the browser a local file. Direct-file downloads and previews use
+exact-media-URL header rules; stream preparation and stream previews can use
+host-matched rules. Rules may replay the detected request's `Referer`, `Origin`,
+`Accept`, and normalized `Range` headers. In Firefox and Safari background-page
+mode, the existing rules omit tab and initiator restrictions, so matching page or
+other requests may also receive those headers while a rule is active. This scope
+is documented in [BROWSER-COMPAT.md](BROWSER-COMPAT.md). When no `Referer` was captured, the page's
+own origin is used in its place. Session rules are removed as their related
+transfer work finishes or fails.
 
 ## Build from source
 
 The packages are generated, so this is what reproduces a submitted build. There
-is no dependency installation step and no network access is needed.
+is no dependency installation step and no network access is needed to package
+the source.
 
 **Build environment**
 
 - Operating system: macOS or Linux, or Windows via WSL or Git Bash. The build is
   a POSIX shell script.
-- [Node.js](https://nodejs.org/) 18 or later, installed from nodejs.org or a
-  package manager. Verified on 26.5.0.
-- `zip` and `unzip` — preinstalled on macOS, `apt install zip unzip` on Debian
-  and Ubuntu. Verified on Info-ZIP 3.0.
+- Git 2.x. Verified with Apple Git 2.50.1 on macOS and Git 2.52.0 in the cloud.
+  On macOS, install Xcode Command Line Tools with
+  `xcode-select --install`, or use [git-scm.com](https://git-scm.com/). On
+  Debian or Ubuntu, use `sudo apt install git`.
+- [Node.js](https://nodejs.org/) 18 or later. Verified on 26.5.0; cloud builds
+  were also checked with 24.19.0.
+- `zip` and `unzip` — preinstalled on macOS, or install with
+  `sudo apt install zip unzip` on Debian and Ubuntu. Verified on Info-ZIP 3.0.
 - **npm is not used.** There is no `package.json`, no `node_modules`, and no
   dependency to install. The only third-party library, `vendor/mux-mp4.min.js`,
   is committed to the source tree.
 
 **Steps**
 
-1. Install Node.js and `zip`/`unzip` as above.
-2. From the root of this source tree, run the build script. It is the only step,
-   and it performs every technical step itself:
+1. Install Git, Node.js, and `zip`/`unzip` as above. No npm/dependency install is
+   needed.
+2. A freshly extracted source ZIP has no `.git` directory. From the source root,
+   initialize Git before packaging, then run the script:
 
    ```sh
+   git init
    sh scripts/package.sh
    ```
 
@@ -135,6 +154,11 @@ is no dependency installation step and no network access is needed.
    where `<version>` is the `version` field of `manifest.json`. The script also
    writes the Chrome/Edge, Safari, and source packages and prints each path. Use
    `dist/downloadswift-firefox-source-<version>.zip` for the AMO source-code upload.
+
+The packaging script reads tracked and untracked, non-ignored files from Git, so
+initializing the repository is required for a fresh extracted source archive; no
+`git add` or commit is needed. See [Firefox source submission](https://extensionworkshop.com/documentation/publish/source-code-submission/)
+and [AMO's third-party library guidance](https://extensionworkshop.com/documentation/publish/third-party-library-usage/).
 
 What the script does: copies the shared source files, generates the Firefox
 manifest from `manifest.json` with `scripts/browser-manifest.mjs` (which swaps
@@ -201,6 +225,10 @@ promotional tiles; Safari's App Store icon is rendered by Apple's packager from
 [`icon.svg`](icon.svg).
 
 `vendor/mux-mp4.min.js` is mux.js 6.3.0, licensed under Apache-2.0. Its license
-is included at `vendor/mux.js-LICENSE.txt`.
+is included at `vendor/mux.js-LICENSE.txt`. The minified file is the
+`package/dist/mux-mp4.min.js` file from the official
+[mux.js 6.3.0 npm archive](https://registry.npmjs.org/mux.js/-/mux.js-6.3.0.tgz);
+the readable tagged source is [on GitHub](https://github.com/videojs/mux.js/tree/v6.3.0).
+SHA-256: `2c01f04954bf67cfa0bf2294ff82e34df8f9749958a0fe5e5782e46f8be71e87`.
 
 Video & Media Downloader's original code is licensed under the [MIT License](LICENSE).

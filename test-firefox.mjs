@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 
-// Firefox rejects a whole rule when its condition carries a property the schema
-// does not define, which is how a Chrome-only `tabIds` silently broke every
-// header replay. Validate the shape the way the browser does.
+// This test double checks conditions against a deliberately restrictive schema
+// surface. Keep its background-page rule shape aligned with the historical
+// workaround that omits tabIds; current compatibility data lists Firefox support.
 const CONDITION_KEYS = new Set([
   "domainType", "excludedInitiatorDomains", "excludedRequestDomains",
   "excludedRequestMethods", "excludedResourceTypes", "initiatorDomains",
@@ -215,7 +215,7 @@ assert.equal(addedRules.length, 1, "Firefox rejected the replay rule outright");
 assert.deepEqual(addedRules[0].condition, {
   isUrlFilterCaseSensitive: true,
   urlFilter: "|https://cdn.example/video.mp4|"
-}, "Firefox has no tabIds condition, so the rule must not carry one");
+}, "Background-page rules omit tabIds as a historical workaround");
 assert.equal(sessionRules.length, 0, "the replay rule is removed once the transfer is done");
 assert.equal(startedDownloads.at(-1).filename, "Firefox direct.mp4");
 assert.equal(directResponse, undefined, "the background page stays alive during the native handoff");
@@ -225,8 +225,8 @@ assert.equal(directResponse.ok, true);
 assert.equal(stored[`download-job:${job.id}`].state, "complete");
 assert.deepEqual(removedFiles, [`downloadswift-${job.id}.mp4`]);
 
-// An HLS job widens its rule to the segment hosts; requestDomains is supported,
-// tabIds is not.
+// An HLS job widens its rule to the segment hosts; this background-page rule
+// uses the historical shape without tabIds.
 sessionRules.length = 0;
 sessionRules.push({ id: 7 });
 stored["download-job:hls"] = {
