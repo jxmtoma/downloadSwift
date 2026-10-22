@@ -53,7 +53,18 @@ async function fetchResource(url, signal, headers, consume = (response) => respo
       const requestSignal = timeoutMs == null ? signal
         : AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
       response = await fetch(url, { cache: "no-store", credentials: "include", headers, signal: requestSignal });
-      if (response.ok) return await consume(response);
+      if (response.ok) {
+        if (response.status === 206 && !(headers?.get?.("Range") ?? headers?.Range)) {
+          const match = /^bytes 0-(\d+)\/(\d+)$/.exec(response.headers.get("content-range") ?? "");
+          const end = Number(match?.[1]);
+          const total = Number(match?.[2]);
+          if (!Number.isSafeInteger(total) || total <= 0 || end !== total - 1) {
+            response.body?.cancel().catch(() => {});
+            throw new Error(t("error_incomplete_media"));
+          }
+        }
+        return await consume(response);
+      }
     } catch (error) {
       if (signal.aborted || error.name === "AbortError" || retryDelay == null) throw error;
       await sleep(retryDelay);
@@ -79,8 +90,7 @@ async function* fetchSegments(urls, signal, ranges = null) {
 
   const fill = () => {
     while (pending.length < SEGMENT_LOOKAHEAD && next < urls.length) {
-      const segment = fetchResource(urls[next], signal, rangeHeaders(ranges?.[next]))
-        .then(async (response) => new Uint8Array(await response.arrayBuffer()));
+      const segment = readBytes(urls[next], signal, rangeHeaders(ranges?.[next]));
       // Marks the rejection handled; it still surfaces when the segment is awaited in order.
       segment.catch(() => {});
       pending.push(segment);

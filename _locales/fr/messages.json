@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "Les plages d'octets couvrant des discontinuités ou des segments d'initialisation changeants ne sont pas encore prises en charge." },
   "error_encrypted_hls": { "message": "Ce flux HLS utilise un chiffrement non pris en charge ou invalide, ou un DRM." },
   "error_no_segments": { "message": "La liste HLS ne contient aucun segment vidéo." },
+  "error_incomplete_media": { "message": "Le serveur a renvoyé une réponse multimédia incomplète. Réessayez le téléchargement plus tard." },
   "error_unsupported_ts": { "message": "Ce flux TS ne contient aucun média H.264/AAC pris en charge." },
   "unknown_error": { "message": "erreur inconnue" },
   "notification_ready": { "message": "Votre vidéo est prête." },

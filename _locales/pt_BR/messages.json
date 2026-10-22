@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "Intervalos de bytes que abrangem descontinuidades ou segmentos de inicialização variáveis ainda não são suportados." },
   "error_encrypted_hls": { "message": "Este stream HLS usa criptografia incompatível ou inválida, ou DRM." },
   "error_no_segments": { "message": "A playlist HLS não contém segmentos de vídeo." },
+  "error_incomplete_media": { "message": "O servidor retornou uma resposta de mídia incompleta. Tente baixar novamente mais tarde." },
   "error_unsupported_ts": { "message": "Este stream TS não contém mídia H.264/AAC compatível." },
   "unknown_error": { "message": "erro desconhecido" },
   "notification_ready": { "message": "Seu vídeo está pronto." },

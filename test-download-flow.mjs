@@ -443,7 +443,7 @@ Object.defineProperty(globalThis, "navigator", {
         }),
         // Nothing stale to collect here; test-safari.mjs covers the sweep.
         keys: async function* () {},
-        removeEntry: async () => {}
+        removeEntry: async (name) => filesByName.delete(name)
       })
     }
   }
@@ -921,6 +921,131 @@ assert.equal(Buffer.compare(
   encryptedOutput.subarray(encryptedMdat.body, encryptedMdat.end),
   clearOutput.subarray(clearMdat.body, clearMdat.end)
 ), 0, "encrypted TS produces the same MP4 sample bytes as its clear fixture");
+
+const twoSegmentPlaylist = (name) => `#EXTM3U
+#EXTINF:4,
+first.ts
+#EXTINF:4,
+${name}
+#EXT-X-ENDLIST`;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("ts-baseline.m3u8")) return new Response(twoSegmentPlaylist("second.ts"));
+  if (url.endsWith("first.ts") || url.endsWith("second.ts")) return new Response(encryptedTs);
+  return new Response(null, { status: 404 });
+};
+const tsBaselineReady = waitFor("offscreen-ts-baseline", "download-ready");
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-ts-baseline",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/ts-baseline.m3u8" },
+    pageTitle: "TS baseline"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await tsBaselineReady;
+const tsBaseline = bytesFor("downloadswift-offscreen-ts-baseline.mp4").bytes;
+const tsBaselineMdat = findBox(tsBaseline, ["mdat"]);
+const partialSegmentRequests = [];
+globalThis.fetch = async (url) => {
+  if (url.endsWith("ts-recovery.m3u8")) return new Response(twoSegmentPlaylist("partial.ts"));
+  if (url.endsWith("first.ts")) return new Response(encryptedTs);
+  if (url.endsWith("partial.ts")) {
+    partialSegmentRequests.push(url);
+    if (partialSegmentRequests.length === 1) return new Response(Uint8Array.of(0x2a), {
+      status: 206,
+      headers: { "content-range": `bytes ${encryptedTs.length - 1}-${encryptedTs.length - 1}/${encryptedTs.length}` }
+    });
+    return new Response(encryptedTs, {
+      status: 206,
+      headers: { "content-range": `bytes 0-${encryptedTs.length - 1}/${encryptedTs.length}` }
+    });
+  }
+  return new Response(null, { status: 404 });
+};
+const tsRecoveryReady = waitFor("offscreen-ts-recovery", "download-ready");
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-ts-recovery",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/ts-recovery.m3u8" },
+    pageTitle: "TS recovery"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await tsRecoveryReady;
+assert.equal(partialSegmentRequests.length, 2, "a partial 206 segment is retried once");
+const tsRecovery = bytesFor("downloadswift-offscreen-ts-recovery.mp4").bytes;
+const tsRecoveryMdat = findBox(tsRecovery, ["mdat"]);
+assert.equal(Buffer.compare(
+  tsRecovery.subarray(tsRecoveryMdat.body, tsRecoveryMdat.end),
+  tsBaseline.subarray(tsBaselineMdat.body, tsBaselineMdat.end)
+), 0, "retrying a partial 206 preserves every sample without duplication");
+
+let brokenBodyRequests = 0;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("ts-body-retry.m3u8")) return new Response(twoSegmentPlaylist("body-failure.ts"));
+  if (url.endsWith("first.ts")) return new Response(encryptedTs);
+  if (url.endsWith("body-failure.ts")) {
+    brokenBodyRequests += 1;
+    if (brokenBodyRequests === 1) return new Response(new ReadableStream({
+      start(controller) { controller.enqueue(encryptedTs.slice(0, 17)); },
+      pull(controller) { controller.error(new TypeError("network error")); }
+    }));
+    return new Response(encryptedTs);
+  }
+  return new Response(null, { status: 404 });
+};
+const tsBodyRetryReady = waitFor("offscreen-ts-body-retry", "download-ready");
+runtimeListeners[1]({
+  job: {
+    id: "offscreen-ts-body-retry",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/ts-body-retry.m3u8" },
+    pageTitle: "TS body retry"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, null, () => {});
+await tsBodyRetryReady;
+assert.equal(brokenBodyRequests, 2, "a segment body read failure retries the whole segment");
+const tsBodyRetry = bytesFor("downloadswift-offscreen-ts-body-retry.mp4").bytes;
+const tsBodyRetryMdat = findBox(tsBodyRetry, ["mdat"]);
+assert.equal(Buffer.compare(
+  tsBodyRetry.subarray(tsBodyRetryMdat.body, tsBodyRetryMdat.end),
+  tsBaseline.subarray(tsBaselineMdat.body, tsBaselineMdat.end)
+), 0, "retrying a segment body failure does not write partial bytes");
+
+let persistentPartialRequests = 0;
+globalThis.fetch = async (url) => {
+  if (url.endsWith("ts-persistent-partial.m3u8")) {
+    return new Response(twoSegmentPlaylist("partial.ts"));
+  }
+  if (url.endsWith("first.ts")) return new Response(encryptedTs);
+  if (url.endsWith("partial.ts")) {
+    persistentPartialRequests += 1;
+    return new Response(Uint8Array.of(0x47), {
+      status: 206,
+      headers: { "content-range": `bytes 0-0/${encryptedTs.length}` }
+    });
+  }
+  return new Response(null, { status: 404 });
+};
+await handleOffscreenMessage({
+  job: {
+    id: "offscreen-ts-persistent-partial",
+    item: { format: "HLS", kind: "playlist", url: "https://media.example/ts-persistent-partial.m3u8" },
+    pageTitle: "Persistent partial TS"
+  },
+  target: "offscreen",
+  type: "start-hls"
+}, true);
+assert.equal(persistentPartialRequests, 3, "a persistent partial 206 exhausts the existing three attempts");
+assert.ok(sentMessages.some((message) => message.jobId === "offscreen-ts-persistent-partial"
+  && message.changes?.state === "error"
+  && message.changes.error === "error_incomplete_media"));
+assert.ok(!sentMessages.some((message) => message.jobId === "offscreen-ts-persistent-partial"
+  && message.type === "download-ready"));
+assert.ok(!filesByName.has("downloadswift-offscreen-ts-persistent-partial.mp4"), "failed partial media is removed");
 
 globalThis.fetch = async (url) => {
   if (url.endsWith("stub-then-real.m3u8")) return new Response(`#EXTM3U

@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "不連続区間や初期化セグメントの変更をまたぐバイトレンジはまだサポートされていません。" },
   "error_encrypted_hls": { "message": "この HLS ストリームの暗号化方式は未対応または無効です。DRM にも対応していません。" },
   "error_no_segments": { "message": "HLS プレイリストに動画セグメントがありません。" },
+  "error_incomplete_media": { "message": "サーバーから不完全なメディア応答が返されました。時間をおいて再度ダウンロードしてください。" },
   "error_unsupported_ts": { "message": "この TS ストリームには対応する H.264/AAC メディアが含まれていません。" },
   "unknown_error": { "message": "不明なエラー" },
   "notification_ready": { "message": "動画の準備ができました。" },

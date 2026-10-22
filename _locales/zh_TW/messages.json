@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "尚不支援跨越不連續點或變更初始化段的位元組範圍。" },
   "error_encrypted_hls": { "message": "此 HLS 串流使用不支援或無效的加密方式，或受 DRM 保護。" },
   "error_no_segments": { "message": "HLS 播放清單中沒有影片片段。" },
+  "error_incomplete_media": { "message": "伺服器傳回不完整的媒體回應。請稍後再試下載。" },
   "error_unsupported_ts": { "message": "此 TS 串流不含受支援的 H.264/AAC 媒體。" },
   "unknown_error": { "message": "未知錯誤" },
   "notification_ready": { "message": "您的影片已準備完成。" },

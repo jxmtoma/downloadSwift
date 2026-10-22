@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "Bytebereiche über Diskontinuitäten oder wechselnde Initialisierungssegmente hinaus werden noch nicht unterstützt." },
   "error_encrypted_hls": { "message": "Dieser HLS-Stream verwendet eine nicht unterstützte oder ungültige Verschlüsselung oder DRM." },
   "error_no_segments": { "message": "Die HLS-Playlist enthält keine Videosegmente." },
+  "error_incomplete_media": { "message": "Der Server hat eine unvollständige Medienantwort zurückgegeben. Bitte versuchen Sie den Download später erneut." },
   "error_unsupported_ts": { "message": "Dieser TS-Stream enthält keine unterstützten H.264/AAC-Medien." },
   "unknown_error": { "message": "unbekannter Fehler" },
   "notification_ready": { "message": "Dein Video ist bereit." },

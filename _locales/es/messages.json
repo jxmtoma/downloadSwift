@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "Los rangos de bytes que abarcan discontinuidades o segmentos de inicialización cambiantes aún no son compatibles." },
   "error_encrypted_hls": { "message": "Este flujo HLS usa cifrado no compatible o no válido, o DRM." },
   "error_no_segments": { "message": "La lista HLS no contiene segmentos de video." },
+  "error_incomplete_media": { "message": "El servidor devolvió una respuesta multimedia incompleta. Intenta descargarlo de nuevo más tarde." },
   "error_unsupported_ts": { "message": "Esta transmisión TS no contiene contenido H.264/AAC compatible." },
   "unknown_error": { "message": "error desconocido" },
   "notification_ready": { "message": "Tu video está listo." },

@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "尚不支持跨越不连续点或更改初始化段的字节范围。" },
   "error_encrypted_hls": { "message": "此 HLS 流使用了不支持或无效的加密方式，或受 DRM 保护。" },
   "error_no_segments": { "message": "HLS 播放列表中没有视频片段。" },
+  "error_incomplete_media": { "message": "服务器返回了不完整的媒体响应。请稍后重试下载。" },
   "error_unsupported_ts": { "message": "此 TS 流不包含受支持的 H.264/AAC 媒体。" },
   "unknown_error": { "message": "未知错误" },
   "notification_ready": { "message": "您的视频已准备就绪。" },

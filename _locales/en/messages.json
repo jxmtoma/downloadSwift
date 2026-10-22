@@ -122,6 +122,7 @@
   "error_byte_range_hls": { "message": "Byte ranges spanning discontinuities or changing initialization segments are not supported yet." },
   "error_encrypted_hls": { "message": "This HLS stream uses unsupported or invalid encryption, or DRM." },
   "error_no_segments": { "message": "The HLS playlist contains no video segments." },
+  "error_incomplete_media": { "message": "The server returned an incomplete media response. Please try the download again later." },
   "error_unsupported_ts": { "message": "This TS stream does not contain supported H.264/AAC media." },
   "unknown_error": { "message": "unknown error" },
   "notification_ready": { "message": "Your video is ready." },
